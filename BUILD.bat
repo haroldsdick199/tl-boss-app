@@ -15,7 +15,12 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo  [1/3] Installing dependencies...
+echo  [1/3] Cleaning old files...
+if exist node_modules (
+    rmdir /s /q node_modules
+)
+
+echo  [2/3] Installing dependencies...
 call npm install
 if errorlevel 1 (
     echo.
@@ -25,7 +30,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo  [2/3] Building Windows installer...
+echo  [3/3] Building Windows installer...
 call npx electron-builder --win --x64
 if errorlevel 1 (
     echo.
@@ -35,7 +40,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo  [3/3] Done!
+echo  Done!
 echo.
 echo  Your installer is in the "dist" folder.
 echo  Run "TL Design Team Setup 1.0.0.exe" to install the app.

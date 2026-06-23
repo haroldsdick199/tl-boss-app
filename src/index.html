@@ -242,10 +242,6 @@ body.behind .pulse-dot{background:#dc2626}
 .big-tbar-track{height:12px;background:#1a1a1a;border-radius:999px;overflow:hidden;position:relative;margin-bottom:20px}
 </style>
 
-<!-- ── Token Setup Overlay ─────────────────────── -->
-<div id="token-setup" style="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:9999;flex-direction:column;align-items:center;justify-content:center;padding:40px">
-  <div style="max-width:420px;width:100%;text-align:center">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#525252;margin-bottom:32px">TIRSO &middot; LIGHTING</div>
     <div style="font-size:26px;font-weight:800;letter-spacing:-.6px;margin-bottom:12px;color:#fff">Connect to Notion</div>
     <div style="font-size:13px;color:#737373;line-height:1.7;margin-bottom:28px">
       Enter your Notion integration token to sync your project data.<br><br>
@@ -266,6 +262,25 @@ body.behind .pulse-dot{background:#dc2626}
 <div class="tab-bar" id="tab-bar">
   <button class="tab tab-active" id="tab-hub"     onclick="showTab('hub')">&#9679; Hub</button>
   <button class="tab"            id="tab-history" onclick="showTab('history')">&#9783; History</button>
+  <button class="tab" id="tab-settings" onclick="showSettings()" title="Notion Token" style="margin-left:auto;opacity:.6;font-size:16px;padding:0 14px">&#9881;</button>
+</div>
+
+<!-- ── Settings Modal ───────────────────────────── -->
+<div id="settings-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:28px;width:380px;max-width:90vw">
+    <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px">Notion Token</div>
+    <div style="font-size:12px;color:#737373;margin-bottom:16px">
+      Get your token at <a href="#" onclick="window.tl.openExternal('https://www.notion.so/my-integrations');return false;" style="color:#a78bfa">notion.so/my-integrations</a>
+    </div>
+    <input id="token-input" type="password" placeholder="secret_xxxxxxxxxxxxxxxx..."
+      style="width:100%;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:8px;padding:11px 14px;color:#fff;font-size:13px;font-family:monospace;outline:none;margin-bottom:10px;box-sizing:border-box"
+      onkeydown="if(event.key==='Enter')saveToken()">
+    <div style="display:flex;gap:8px">
+      <button onclick="saveToken()" style="flex:1;background:#7c3aed;border:none;border-radius:8px;padding:11px;color:#fff;font-size:13px;font-weight:700;cursor:pointer">Save</button>
+      <button onclick="document.getElementById('settings-modal').style.display='none'" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:11px 16px;color:#a1a1aa;font-size:13px;cursor:pointer">Cancel</button>
+    </div>
+    <div id="token-error" style="color:#f87171;font-size:12px;margin-top:8px;min-height:16px"></div>
+  </div>
 </div>
 
 <div id="hub-view">
@@ -718,7 +733,7 @@ function urlToId(url){
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────
-(async function init(){
+async function init(){
   const NOTION   = 'mcp__7012492d-a42b-490b-abaf-507e26204aa9__notion-fetch';
   const active   = PROJECTS.filter(p => !p.done && p.id);
   const CACHE_KEY = 'tl-boss-v6';
@@ -1287,7 +1302,12 @@ function renderDetail(p){
 </div>`;
 }
 
-// ── Token setup & startup ─────────────────────────────────────────────────
+// ── Settings modal ───────────────────────────────────────────────────────
+function showSettings(){
+  document.getElementById('settings-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('token-input').focus(), 50);
+}
+
 async function saveToken(){
   const input = document.getElementById('token-input');
   const errEl = document.getElementById('token-error');
@@ -1297,20 +1317,19 @@ async function saveToken(){
   errEl.textContent='';
   try{
     await window.tl.setToken(token);
-    document.getElementById('token-setup').style.display='none';
+    document.getElementById('settings-modal').style.display='none';
     init();
   }catch(e){ errEl.textContent='Error: '+e.message; }
 }
 
+// ── Startup ───────────────────────────────────────────────────────────────
 async function startup(){
-  const token = await window.tl.getToken();
-  if(!token){
-    document.getElementById('token-setup').style.display='flex';
-  } else {
-    init();
-  }
+  try{
+    const token = await window.tl.getToken();
+    if(token){ init(); }
+    else { showSettings(); }
+  }catch(e){ showSettings(); }
 }
-
 startup();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" crossorigin="anonymous"></script>
