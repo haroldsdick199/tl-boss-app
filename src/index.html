@@ -703,17 +703,18 @@ function urlToId(url){
 
 // ── Init ──────────────────────────────────────────────────────────────────
 async function init(){
-  const NOTION   = 'mcp__7012492d-a42b-490b-abaf-507e26204aa9__notion-fetch';
-  const active   = PROJECTS.filter(p => !p.done && p.id);
-  const CACHE_KEY = 'tl-boss-v7';
+  const active    = PROJECTS.filter(p => !p.done && p.id);
+  const CACHE_KEY = 'tl-boss-v8';
   const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+  // Tasks database ID (the collection that holds all task pages)
+  const TASKS_DB  = '3092b8ff-1ebd-8119-8173-000b8814ced4';
 
   function setStatus(msg){
     document.getElementById('projects-el').innerHTML=
       `<div style="color:#525252;font-size:12px;padding:10px 0">${msg}</div>`;
   }
 
-  // ── Try cache first ───────────────────────────────────────────────────────
+  // ── Try cache first ────────────────────────────────────────────────────
   try{
     const cached = JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
     if(cached && Date.now()-cached.ts < CACHE_TTL){
@@ -728,78 +729,107 @@ async function init(){
       renderProjects();
       const d=calcScoreFromProjects();
       renderScore(d.score,d);
-      return; // skip all API calls
+      return;
     }
   }catch(e){}
 
-  // ── Step 1: fetch each project page → check status + collect task URLs ──────
-  setStatus('Loading&hellip; (0/'+active.length+')');
-  const needTaskFetch=[];
+  // ── Step 1: check project statuses ────────────────────────────────────
+  setStatus('Loading projects&hellip;');
   for(let i=0;i<active.length;i++){
     const p=active[i];
-    setStatus('Loading&hellip; ('+(i+1)+'/'+active.length+')');
     try{
       const {props}=await window.tl.fetchPage(p.id);
-
-      // Check if project was marked Done in Notion
       const status=props['Status']||'';
       if(/done|complet|finish|archiv/i.test(status) && !p.done){
         p.done=true;
-        // Read end date from Date Range property, fallback to Last edited time
         const endDate=props['date:Date Range:end']||props['date:Date Range:start'];
-        if(endDate){
-          p.end=endDate;
-        } else {
-          const lastEdit=props['Last edited time']||props['Created time']||'';
-          if(lastEdit) p.end=lastEdit.substring(0,10); // ISO date portion only
-        }
-        // Don't fetch tasks for newly-done projects, skip to next
-        if(i<active.length-1)await sleep(80);
-        continue;
+        if(endDate){ p.end=endDate; }
+        else { const le=props['Last edited time']||props['Created time']||''; if(le) p.end=le.substring(0,10); }
       }
-
-      const taskUrls=props['Tasks']||props['Task']||props['Actions']||props['Sub-tasks']||[];
-      needTaskFetch.push({p,taskUrls:Array.isArray(taskUrls)?taskUrls:[]});
-    }catch(e){ needTaskFetch.push({p,taskUrls:[]}); }
-    if(i<active.length-1)await sleep(80);
+    }catch(e){}
+    if(i<active.length-1) await sleep(80);
   }
 
-  // ── Step 2: fetch each task → Phase + date range → per-phase working days ─
-  if(needTaskFetch.length){
-    setStatus('Reading task data&hellip;');
-    for(let pi=0;pi<needTaskFetch.length;pi++){
-      const {p,taskUrls}=needTaskFetch[pi];
+  // ── Step 2: query the tasks database once — much faster than per-task fetches ─
+  setStatus('Reading task data&hellip;');
+  const stillActive = PROJECTS.filter(p => !p.done && p.id);
+  try{
+    const allTasks = await window.tl.queryDatabase(TASKS_DB);
+    console.log('[TL] Task DB returned', allTasks.length, 'tasks');
+
+    // Group tasks by which project they belong to
+    // Tasks should have a relation property pointing back to the project page
+    const tasksByProjUrl = {};
+    for(const task of allTasks){
+      // Try various property names for the project back-relation
+      const projRel = task.props['Project']||task.props['Projects']||task.props['Proyecto']||task.props['Proyect']||[];
+      const projUrls = Array.isArray(projRel)?projRel:[];
+      if(projUrls.length===0){
+        // Log first task's property keys to help debug relation name
+        if(allTasks.indexOf(task)===0) console.log('[TL] Task props keys:', Object.keys(task.props));
+      }
+      for(const url of projUrls){
+        if(!tasksByProjUrl[url]) tasksByProjUrl[url]=[];
+        tasksByProjUrl[url].push(task);
+      }
+    }
+
+    // Assign tasks to projects and calculate per-phase working days
+    for(const p of stillActive){
+      const projUrl=`https://app.notion.com/p/${(p.id||'').replace(/-/g,'')}`;
+      const tasks=tasksByProjUrl[projUrl]||[];
       let totalDes=0,totalDra=0,totalQuo=0;
-      for(let ti=0;ti<taskUrls.length;ti++){
-        const tid=urlToId(taskUrls[ti]);
-        if(!tid)continue;
-        try{
-          const {props,title}=await window.tl.fetchPage(tid);
-          const taskPhase=(props['Phase']||'').toUpperCase();
-          const tStart=props['date:Action Date:start']||props['date:Date:start']||props['date:Timeline:start']||props['date:Work Date:start']||props['date:Deadline:start'];
-          const tEnd  =props['date:Action Date:end']  ||props['date:Date:end']  ||props['date:Timeline:end']  ||props['date:Work Date:end']  ||props['date:Deadline:end'];
-          const taskName=title||props['Name']||props['name']||'Untitled';
-          const taskStatus=props['Status']||props['status']||'';
-          let tDays=0;
-          if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
-          if(taskPhase.includes('DESIGN'))       totalDes+=tDays;
-          else if(taskPhase.includes('DRAFT'))   totalDra+=tDays;
-          else if(taskPhase.includes('QUOT'))    totalQuo+=tDays;
-          if(!p._tasks) p._tasks=[];
-          p._tasks.push({name:taskName,phase:taskPhase,status:taskStatus,start:tStart,end:tEnd,days:tDays});
-        }catch(e){}
-        if(ti<taskUrls.length-1)await sleep(60);
+      const projTasks=[];
+      for(const task of tasks){
+        const phase=(task.props['Phase']||task.props['phase']||'').toUpperCase();
+        const tStart=task.props['date:Action Date:start']||task.props['date:Date:start']||task.props['date:Timeline:start']||task.props['date:Work Date:start'];
+        const tEnd  =task.props['date:Action Date:end']  ||task.props['date:Date:end']  ||task.props['date:Timeline:end']  ||task.props['date:Work Date:end'];
+        let tDays=0;
+        if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
+        if(phase.includes('DESIGN'))      totalDes+=tDays;
+        else if(phase.includes('DRAFT'))  totalDra+=tDays;
+        else if(phase.includes('QUOT'))   totalQuo+=tDays;
+        projTasks.push({name:task.title||'Untitled',phase:task.props['Phase']||task.props['phase']||'',status:task.props['Status']||task.props['status']||'',start:tStart,end:tEnd,days:tDays});
       }
       p.designDays  =totalDes;
       p.draftingDays=totalDra;
       p.quotingDays =totalQuo;
       const totalWds=totalDes+totalDra+totalQuo;
       if(totalWds>0){ p.wds=totalWds; p._wdsLoaded=true; }
-      if(pi<needTaskFetch.length-1)await sleep(60);
+      if(projTasks.length>0) p._tasks=projTasks;
+    }
+  }catch(e){
+    console.warn('[TL] Task DB query failed:', e.message);
+    // Fallback: fetch tasks individually using TASK_IDS if DB query fails
+    for(const tid of TASK_IDS){
+      try{
+        const {props,title}=await window.tl.fetchPage(tid);
+        const projRel=props['Project']||props['Projects']||[];
+        const projUrls=Array.isArray(projRel)?projRel:[];
+        for(const projUrl of projUrls){
+          const pMatch=stillActive.find(p=>`https://app.notion.com/p/${(p.id||'').replace(/-/g,'')}`===projUrl);
+          if(!pMatch)continue;
+          const phase=(props['Phase']||'').toUpperCase();
+          const tStart=props['date:Action Date:start']||props['date:Date:start'];
+          const tEnd  =props['date:Action Date:end']  ||props['date:Date:end'];
+          let tDays=0;
+          if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
+          if(phase.includes('DESIGN'))     pMatch.designDays=(pMatch.designDays||0)+tDays;
+          else if(phase.includes('DRAFT')) pMatch.draftingDays=(pMatch.draftingDays||0)+tDays;
+          else if(phase.includes('QUOT'))  pMatch.quotingDays=(pMatch.quotingDays||0)+tDays;
+          if(!pMatch._tasks) pMatch._tasks=[];
+          pMatch._tasks.push({name:title||'Untitled',phase:props['Phase']||'',status:props['Status']||'',start:tStart,end:tEnd,days:tDays});
+        }
+      }catch(e2){}
+      await sleep(60);
+    }
+    for(const p of stillActive){
+      const tw=(p.designDays||0)+(p.draftingDays||0)+(p.quotingDays||0);
+      if(tw>0){ p.wds=tw; p._wdsLoaded=true; }
     }
   }
 
-  // ── Save to cache ─────────────────────────────────────────────────────────
+  // ── Save to cache ──────────────────────────────────────────────────────
   try{
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       ts: Date.now(),
@@ -814,8 +844,6 @@ async function init(){
   renderProjects();
   const data=calcScoreFromProjects();
   renderScore(data.score,data);
-
-  // Save monthly snapshot if today is the last day of the month
   saveMonthlySnapshot();
 }
 
@@ -1301,7 +1329,46 @@ async function saveToken(){
   init();
 }
 
-// Just start — init handles missing token gracefully
+// ── Seed historical snapshots (for months that have already passed) ───────
+function seedHistoricalSnapshots(){
+  try{
+    const juneKey='tl-monthly-2026-06';
+    if(!localStorage.getItem(juneKey)){
+      // June 30, 2026 state:
+      // Completed this month: 11:11 BOND (Jun 9) + NYC Smile (Jun 10)
+      // Active: 8 projects, 5 overdue (Nimbus, Celestina, Judy's, 425 Saddle, Nyack)
+      const juneSnap={
+        savedAt:'2026-06-30',
+        score:42,
+        activeCount:8,
+        completedThisMonthCount:2,
+        overdue:5,
+        totalDesignDays:0, totalDraftingDays:0, totalQuotingDays:0,
+        projects:[
+          {name:'11:11 BOND',       done:true,  start:'2026-02-16',end:'2026-06-09',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'NYC Smile',        done:true,  start:'2026-01-06',end:'2026-06-10',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'Nimbus',           done:false, start:'2026-02-16',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'LA CELESTINA',     done:false, start:'2026-03-06',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:"Judy's on Cherry", done:false, start:'2026-03-27',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'425 SADDLE BACK',  done:false, start:'2026-03-27',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'NYACK 100 MAIN',   done:false, start:'2026-05-01',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'PANTAZIS HOUSE',   done:false, start:'2026-05-08',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'TLI OFFICE',       done:false, start:'2026-05-18',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0},
+          {name:'STEIN RESIDENCE',  done:false, start:'2026-06-04',designDays:0,draftingDays:0,quotingDays:0,wds:0,cr:0}
+        ],
+        completedThisMonth:[
+          {name:'11:11 BOND',end:'2026-06-09'},
+          {name:'NYC Smile', end:'2026-06-10'}
+        ]
+      };
+      localStorage.setItem(juneKey,JSON.stringify(juneSnap));
+      console.log('[TL] Seeded June 2026 snapshot');
+    }
+  }catch(e){}
+}
+
+// Seed past snapshots, then start loading
+seedHistoricalSnapshots();
 init();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" crossorigin="anonymous"></script>

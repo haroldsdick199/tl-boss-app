@@ -165,7 +165,45 @@ function parseNotionPage(page) {
   return { title, props };
 }
 
+// ── Notion database query (POST) ─────────────────────────────────────────
+function notionQueryDatabase(token, databaseId) {
+  return new Promise((resolve, reject) => {
+    const postData = JSON.stringify({ page_size: 100 });
+    const req = https.request({
+      hostname: 'api.notion.com',
+      path:     `/v1/databases/${databaseId}/query`,
+      method:   'POST',
+      headers: {
+        'Authorization':  `Bearer ${token}`,
+        'Notion-Version': '2022-06-28',
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch(e) { reject(new Error('Invalid JSON from Notion')); }
+      });
+    });
+    req.on('error', reject);
+    req.write(postData);
+    req.end();
+  });
+}
+
 // ── IPC handlers ──────────────────────────────────────────────────────────
+ipcMain.handle('notion-query-db', async (_e, rawId) => {
+  const cfg = loadConfig();
+  if (!cfg.token) throw new Error('No Notion token configured');
+  const id = toDashedId(rawId);
+  if (!id) throw new Error(`Invalid database ID: ${rawId}`);
+  const result = await notionQueryDatabase(cfg.token, id);
+  if (!result || result.object === 'error') throw new Error(result?.message || 'Notion query error');
+  return (result.results || []).map(page => ({ id: page.id, ...parseNotionPage(page) }));
+});
+
 ipcMain.handle('notion-fetch', async (_e, rawId) => {
   const cfg = loadConfig();
   if (!cfg.token) throw new Error('No Notion token configured');
