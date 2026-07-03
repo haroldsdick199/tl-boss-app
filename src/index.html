@@ -426,7 +426,7 @@ function renderScore(score, data){
   document.getElementById('kpis-el').innerHTML=
     kpi(data.active,'Active','') +
     '<div class="kpi-sep"></div>' +
-    kpi(data.inProg,'In Progress','purple') +
+    kpi(data.inProg,'On Time','purple') +
     '<div class="kpi-sep"></div>' +
     kpi(data.doneMonth,'Done in '+monthName,'') +
     '<div class="kpi-sep"></div>' +
@@ -668,21 +668,25 @@ function renderProjects(){
 function calcScoreFromProjects(){
   const active  = PROJECTS.filter(p => !p.done);
   const monthly = getMonthlyDone();
-  const doneMonth = DONE_THIS_MONTH + monthly.length;
+  const doneMonth = monthly.length;
   const overProjects = active.filter(p => {
     const days = p._wdsLoaded ? (p.wds||0) : daysBetween(p.start, TODAY);
     return days > D_STD;
   }).length;
-  const inProg  = active.filter(p => p._wdsLoaded && (p.wds||0) > 0).length;
+  // On-time = projects within standard timeline
+  const onTime = active.filter(p => {
+    const days = p._wdsLoaded ? (p.wds||0) : daysBetween(p.start, TODAY);
+    return days <= D_STD;
+  }).length;
   const totalCR = active.reduce((s,p) => s+(p.cr||0), 0);
 
-  let score = 50;
-  score += Math.min(30, Math.round((doneMonth/10)*30));
-  score += Math.min(10, monthly.length*5);
-  score -= overProjects*8;
+  let score = 60;
+  score += Math.min(15, Math.round((onTime / (active.length||1)) * 15)); // on-time ratio bonus
+  score += Math.min(10, monthly.length*5); // completions this month
+  score -= overProjects*7;
   score -= totalCR*5;
   score  = Math.max(0, Math.min(100, score));
-  return { score, active:active.length, inProg, overdue:overProjects, doneMonth };
+  return { score, active:active.length, inProg:onTime, overdue:overProjects, doneMonth };
 }
 
 function clearCacheAndRefresh(){
@@ -701,7 +705,7 @@ function urlToId(url){
 async function init(){
   const NOTION   = 'mcp__7012492d-a42b-490b-abaf-507e26204aa9__notion-fetch';
   const active   = PROJECTS.filter(p => !p.done && p.id);
-  const CACHE_KEY = 'tl-boss-v6';
+  const CACHE_KEY = 'tl-boss-v7';
   const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
   function setStatus(msg){
@@ -754,7 +758,7 @@ async function init(){
         continue;
       }
 
-      const taskUrls=props['Tasks'];
+      const taskUrls=props['Tasks']||props['Task']||props['Actions']||props['Sub-tasks']||[];
       needTaskFetch.push({p,taskUrls:Array.isArray(taskUrls)?taskUrls:[]});
     }catch(e){ needTaskFetch.push({p,taskUrls:[]}); }
     if(i<active.length-1)await sleep(80);
@@ -771,16 +775,16 @@ async function init(){
         if(!tid)continue;
         try{
           const {props,title}=await window.tl.fetchPage(tid);
-          const taskPhase=props['Phase']||'';
-          const tStart=props['date:Action Date:start'];
-          const tEnd=props['date:Action Date:end'];
+          const taskPhase=(props['Phase']||'').toUpperCase();
+          const tStart=props['date:Action Date:start']||props['date:Date:start']||props['date:Timeline:start']||props['date:Work Date:start']||props['date:Deadline:start'];
+          const tEnd  =props['date:Action Date:end']  ||props['date:Date:end']  ||props['date:Timeline:end']  ||props['date:Work Date:end']  ||props['date:Deadline:end'];
           const taskName=title||props['Name']||props['name']||'Untitled';
           const taskStatus=props['Status']||props['status']||'';
           let tDays=0;
           if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
-          if(taskPhase==='DESIGN')        totalDes+=tDays;
-          else if(taskPhase==='DRAFTING') totalDra+=tDays;
-          else if(taskPhase==='QUOTING')  totalQuo+=tDays;
+          if(taskPhase.includes('DESIGN'))       totalDes+=tDays;
+          else if(taskPhase.includes('DRAFT'))   totalDra+=tDays;
+          else if(taskPhase.includes('QUOT'))    totalQuo+=tDays;
           if(!p._tasks) p._tasks=[];
           p._tasks.push({name:taskName,phase:taskPhase,status:taskStatus,start:tStart,end:tEnd,days:tDays});
         }catch(e){}
@@ -856,7 +860,7 @@ async function showDetail(name){
     try{
       setBar(10);
       const {props}=await window.tl.fetchPage(p.id);
-      const taskUrls=Array.isArray(props['Tasks'])?props['Tasks']:[];
+      const taskUrls=Array.isArray(props['Tasks'])?props['Tasks']:Array.isArray(props['Task'])?props['Task']:Array.isArray(props['Actions'])?props['Actions']:[];
       setBar(20);
 
       let totalDes=0,totalDra=0,totalQuo=0;
@@ -864,20 +868,19 @@ async function showDetail(name){
       for(let ti=0;ti<taskUrls.length;ti++){
         if(!dv.isConnected) return; // user navigated back
         const tid=urlToId(taskUrls[ti]);
-        if(!tid)
         if(!tid)continue;
         try{
           const {props:tp,title}=await window.tl.fetchPage(tid);
-          const phase=tp['Phase']||'';
-          const tStart=tp['date:Action Date:start'];
-          const tEnd=tp['date:Action Date:end'];
+          const phase=(tp['Phase']||'').toUpperCase();
+          const tStart=tp['date:Action Date:start']||tp['date:Date:start']||tp['date:Timeline:start']||tp['date:Work Date:start']||tp['date:Deadline:start'];
+          const tEnd  =tp['date:Action Date:end']  ||tp['date:Date:end']  ||tp['date:Timeline:end']  ||tp['date:Work Date:end']  ||tp['date:Deadline:end'];
           const tName=title||tp['Name']||tp['name']||'Untitled';
           const tStatus=tp['Status']||tp['status']||'';
           let tDays=0;
           if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
-          if(phase==='DESIGN')        totalDes+=tDays;
-          else if(phase==='DRAFTING') totalDra+=tDays;
-          else if(phase==='QUOTING')  totalQuo+=tDays;
+          if(phase.includes('DESIGN'))       totalDes+=tDays;
+          else if(phase.includes('DRAFT'))   totalDra+=tDays;
+          else if(phase.includes('QUOT'))    totalQuo+=tDays;
           freshTasks.push({name:tName,phase,status:tStatus,start:tStart,end:tEnd,days:tDays});
         }catch(e){}
         setBar(20 + Math.round((ti+1)/taskUrls.length*70));
