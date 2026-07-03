@@ -707,129 +707,87 @@ function urlToId(url){
 // ── Init ──────────────────────────────────────────────────────────────────
 async function init(){
   const active    = PROJECTS.filter(p => !p.done && p.id);
-  const CACHE_KEY = 'tl-boss-v8';
+  const CACHE_KEY = 'tl-boss-v9';
   const CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
-  // Tasks database ID (the collection that holds all task pages)
-  const TASKS_DB  = '3092b8ff-1ebd-8119-8173-000b8814ced4';
 
   function setStatus(msg){
     document.getElementById('projects-el').innerHTML=
       `<div style="color:#525252;font-size:12px;padding:10px 0">${msg}</div>`;
   }
 
-  // ── Try cache first ────────────────────────────────────────────────────
+  // ── Try cache ──────────────────────────────────────────────────────────
   try{
     const cached = JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
     if(cached && Date.now()-cached.ts < CACHE_TTL){
       cached.projects.forEach(c=>{
         const p=PROJECTS.find(x=>x.name===c.name);
-        if(p){ if(c.done) p.done=true;
-               if(c.end)  p.end=c.end;
+        if(p){ if(c.done) p.done=true; if(c.end) p.end=c.end;
                p.designDays=c.designDays; p.draftingDays=c.draftingDays;
                p.quotingDays=c.quotingDays; p.wds=c.wds;
                p._wdsLoaded=c._wdsLoaded; p._tasks=c._tasks; }
       });
-      renderProjects();
-      const d=calcScoreFromProjects();
-      renderScore(d.score,d);
-      return;
+      renderProjects(); const d=calcScoreFromProjects(); renderScore(d.score,d); return;
     }
   }catch(e){}
 
-  // ── Step 1: check project statuses ────────────────────────────────────
-  setStatus('Loading projects&hellip;');
+  // ── Fetch each active project page ────────────────────────────────────
+  // Primary path: read Design Days / Drafting Days / Quoting Days rollup fields
+  // (requires new main.js with rollup support — needs one BUILD.bat run).
+  // Fallback: fetch each task individually from project's Tasks relation.
+  setStatus('Loading&hellip; (0/'+active.length+')');
   for(let i=0;i<active.length;i++){
     const p=active[i];
+    setStatus('Loading&hellip; ('+(i+1)+'/'+active.length+')');
     try{
       const {props}=await window.tl.fetchPage(p.id);
+
+      // Check if project is done
       const status=props['Status']||'';
-      if(/done|complet|finish|archiv/i.test(status) && !p.done){
+      if(/done|complet|finish|archiv/i.test(status)){
         p.done=true;
         const endDate=props['date:Date Range:end']||props['date:Date Range:start'];
         if(endDate){ p.end=endDate; }
         else { const le=props['Last edited time']||props['Created time']||''; if(le) p.end=le.substring(0,10); }
+        if(i<active.length-1) await sleep(80);
+        continue;
       }
-    }catch(e){}
-    if(i<active.length-1) await sleep(80);
-  }
 
-  // ── Step 2: query the tasks database once — much faster than per-task fetches ─
-  setStatus('Reading task data&hellip;');
-  const stillActive = PROJECTS.filter(p => !p.done && p.id);
-  try{
-    const allTasks = await window.tl.queryDatabase(TASKS_DB);
-    console.log('[TL] Task DB returned', allTasks.length, 'tasks');
-
-    // Group tasks by which project they belong to
-    // Tasks should have a relation property pointing back to the project page
-    const tasksByProjUrl = {};
-    for(const task of allTasks){
-      // Try various property names for the project back-relation
-      const projRel = task.props['Project']||task.props['Projects']||task.props['Proyecto']||task.props['Proyect']||[];
-      const projUrls = Array.isArray(projRel)?projRel:[];
-      if(projUrls.length===0){
-        // Log first task's property keys to help debug relation name
-        if(allTasks.indexOf(task)===0) console.log('[TL] Task props keys:', Object.keys(task.props));
-      }
-      for(const url of projUrls){
-        if(!tasksByProjUrl[url]) tasksByProjUrl[url]=[];
-        tasksByProjUrl[url].push(task);
-      }
-    }
-
-    // Assign tasks to projects and calculate per-phase working days
-    for(const p of stillActive){
-      const projUrl=`https://app.notion.com/p/${(p.id||'').replace(/-/g,'')}`;
-      const tasks=tasksByProjUrl[projUrl]||[];
-      let totalDes=0,totalDra=0,totalQuo=0;
-      const projTasks=[];
-      for(const task of tasks){
-        const phase=(task.props['Phase']||task.props['phase']||'').toUpperCase();
-        const tStart=task.props['date:Action Date:start']||task.props['date:Date:start']||task.props['date:Timeline:start']||task.props['date:Work Date:start'];
-        const tEnd  =task.props['date:Action Date:end']  ||task.props['date:Date:end']  ||task.props['date:Timeline:end']  ||task.props['date:Work Date:end'];
-        let tDays=0;
-        if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
-        if(phase.includes('DESIGN'))      totalDes+=tDays;
-        else if(phase.includes('DRAFT'))  totalDra+=tDays;
-        else if(phase.includes('QUOT'))   totalQuo+=tDays;
-        projTasks.push({name:task.title||'Untitled',phase:task.props['Phase']||task.props['phase']||'',status:task.props['Status']||task.props['status']||'',start:tStart,end:tEnd,days:tDays});
-      }
-      p.designDays  =totalDes;
-      p.draftingDays=totalDra;
-      p.quotingDays =totalQuo;
-      const totalWds=totalDes+totalDra+totalQuo;
-      if(totalWds>0){ p.wds=totalWds; p._wdsLoaded=true; }
-      if(projTasks.length>0) p._tasks=projTasks;
-    }
-  }catch(e){
-    console.warn('[TL] Task DB query failed:', e.message);
-    // Fallback: fetch tasks individually using TASK_IDS if DB query fails
-    for(const tid of TASK_IDS){
-      try{
-        const {props,title}=await window.tl.fetchPage(tid);
-        const projRel=props['Project']||props['Projects']||[];
-        const projUrls=Array.isArray(projRel)?projRel:[];
-        for(const projUrl of projUrls){
-          const pMatch=stillActive.find(p=>`https://app.notion.com/p/${(p.id||'').replace(/-/g,'')}`===projUrl);
-          if(!pMatch)continue;
-          const phase=(props['Phase']||'').toUpperCase();
-          const tStart=props['date:Action Date:start']||props['date:Date:start'];
-          const tEnd  =props['date:Action Date:end']  ||props['date:Date:end'];
-          let tDays=0;
-          if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
-          if(phase.includes('DESIGN'))     pMatch.designDays=(pMatch.designDays||0)+tDays;
-          else if(phase.includes('DRAFT')) pMatch.draftingDays=(pMatch.draftingDays||0)+tDays;
-          else if(phase.includes('QUOT'))  pMatch.quotingDays=(pMatch.quotingDays||0)+tDays;
-          if(!pMatch._tasks) pMatch._tasks=[];
-          pMatch._tasks.push({name:title||'Untitled',phase:props['Phase']||'',status:props['Status']||'',start:tStart,end:tEnd,days:tDays});
+      // ── Fast path: rollup fields already computed by Notion ──
+      const des = (typeof props['Design Days']   === 'number') ? Math.round(props['Design Days'])   : 0;
+      const dra = (typeof props['Drafting Days']  === 'number') ? Math.round(props['Drafting Days'])  : 0;
+      const quo = (typeof props['Quoting Days']   === 'number') ? Math.round(props['Quoting Days'])   : 0;
+      if(des+dra+quo > 0){
+        p.designDays=des; p.draftingDays=dra; p.quotingDays=quo;
+        p.wds=des+dra+quo; p._wdsLoaded=true;
+      } else {
+        // ── Fallback: fetch each task from project's Tasks relation ──
+        const taskUrls = Array.isArray(props['Tasks']) ? props['Tasks'] : [];
+        let totalDes=0,totalDra=0,totalQuo=0;
+        const projTasks=[];
+        for(let ti=0;ti<taskUrls.length;ti++){
+          const tid=urlToId(taskUrls[ti]);
+          if(!tid) continue;
+          try{
+            const {props:tp,title}=await window.tl.fetchPage(tid);
+            const phase=(tp['Phase']||'').toUpperCase();
+            const tStart=tp['date:Action Date:start'];
+            const tEnd  =tp['date:Action Date:end'];
+            let tDays=0;
+            if(tStart&&tEnd) tDays=workingDays(tStart,tEnd);
+            if(phase.includes('DESIGN'))      totalDes+=tDays;
+            else if(phase.includes('DRAFT'))  totalDra+=tDays;
+            else if(phase.includes('QUOT'))   totalQuo+=tDays;
+            projTasks.push({name:title||'Untitled',phase:tp['Phase']||'',status:tp['Status']||'',start:tStart,end:tEnd,days:tDays});
+          }catch(e2){}
+          if(ti<taskUrls.length-1) await sleep(50);
         }
-      }catch(e2){}
-      await sleep(60);
-    }
-    for(const p of stillActive){
-      const tw=(p.designDays||0)+(p.draftingDays||0)+(p.quotingDays||0);
-      if(tw>0){ p.wds=tw; p._wdsLoaded=true; }
-    }
+        p.designDays=totalDes; p.draftingDays=totalDra; p.quotingDays=totalQuo;
+        const tw=totalDes+totalDra+totalQuo;
+        if(tw>0){ p.wds=tw; p._wdsLoaded=true; }
+        if(projTasks.length>0) p._tasks=projTasks;
+      }
+    }catch(e){ console.warn('[TL] Project fetch error:', p.name, e.message); }
+    if(i<active.length-1) await sleep(80);
   }
 
   // ── Save to cache ──────────────────────────────────────────────────────
@@ -848,39 +806,6 @@ async function init(){
   const data=calcScoreFromProjects();
   renderScore(data.score,data);
   saveMonthlySnapshot();
-
-  // ── Debug panel: auto-shows if task data didn't load ───────────────────
-  const anyReal = PROJECTS.some(p => p._wdsLoaded);
-  if (!anyReal) {
-    const dbgEl = document.getElementById('debug-el');
-    if (dbgEl) {
-      dbgEl.style.display = 'block';
-      dbgEl.innerHTML = '<b>⚠ Task data not loading — reading Notion property names…</b><br>';
-      // Fetch first active project to see its property names
-      try {
-        const fp = PROJECTS.find(p => !p.done && p.id);
-        if (fp) {
-          const {props:pp} = await window.tl.fetchPage(fp.id);
-          const relKeys = Object.entries(pp)
-            .filter(([k,v]) => Array.isArray(v))
-            .map(([k,v]) => `"${k}"(${v.length})`).join(', ');
-          const allKeys = Object.keys(pp).filter(k=>!k.startsWith('date:')).sort().join(', ');
-          dbgEl.innerHTML += `<b>Project "${fp.name}" — all props:</b> ${allKeys}<br>`;
-          dbgEl.innerHTML += `<b>Array/relation props:</b> ${relKeys||'(none found)'}<br>`;
-        }
-      } catch(e){ dbgEl.innerHTML += `Project fetch error: ${e.message}<br>`; }
-      // Fetch first task to see its property names
-      try {
-        const {props:tp, title:tt} = await window.tl.fetchPage(TASK_IDS[0]);
-        const relKeys = Object.entries(tp)
-          .filter(([k,v]) => Array.isArray(v))
-          .map(([k,v]) => `"${k}"(${v.length})`).join(', ');
-        const allKeys = Object.keys(tp).filter(k=>!k.startsWith('date:')).sort().join(', ');
-        dbgEl.innerHTML += `<b>Task "${tt}" — all props:</b> ${allKeys}<br>`;
-        dbgEl.innerHTML += `<b>Array/relation props:</b> ${relKeys||'(none found)'}`;
-      } catch(e){ dbgEl.innerHTML += `Task fetch error: ${e.message}`; }
-    }
-  }
 }
 
 // ── Hub / Detail navigation ───────────────────────────────────────────────

@@ -158,7 +158,29 @@ function parseNotionPage(page) {
       case 'created_time':     props[key] = val.created_time || ''; break;
       case 'last_edited_time': props[key] = val.last_edited_time || ''; break;
       case 'formula':
-      case 'rollup':           props[key] = null; break;
+        if (val.formula) {
+          const f = val.formula;
+          if      (f.type === 'number')  props[key] = f.number ?? null;
+          else if (f.type === 'string')  props[key] = f.string ?? '';
+          else if (f.type === 'boolean') props[key] = f.boolean ? '__YES__' : '__NO__';
+          else if (f.type === 'date')    props[key] = f.date?.start ?? null;
+          else                           props[key] = null;
+        } else { props[key] = null; }
+        break;
+      case 'rollup':
+        if (val.rollup) {
+          const r = val.rollup;
+          if (r.type === 'number' && r.number !== null && r.number !== undefined) {
+            props[key] = r.number;
+          } else if (r.type === 'array') {
+            props[key] = (r.array || []).reduce((acc, item) => {
+              if (item.type === 'number' && item.number !== null) return acc + item.number;
+              if (item.type === 'formula' && item.formula?.type === 'number' && item.formula.number !== null) return acc + item.formula.number;
+              return acc;
+            }, 0);
+          } else { props[key] = null; }
+        } else { props[key] = null; }
+        break;
       default: break;
     }
   }
