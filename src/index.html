@@ -298,6 +298,9 @@ body.behind .pulse-dot{background:#dc2626}
 </div>
 
 <div id="detail-view"></div>
+<div id="debug-el" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0a0a0a;border-top:2px solid #dc2626;padding:10px 16px 14px;font-size:10.5px;color:#fca5a5;font-family:monospace;z-index:9997;line-height:1.8;max-height:200px;overflow-y:auto">
+  <button onclick="document.getElementById('debug-el').style.display='none'" style="float:right;background:none;border:none;color:#f87171;cursor:pointer;font-size:14px">✕</button>
+</div>
 
 <script>
 // ── Task IDs ─────────────────────────────────────────────────────────────
@@ -845,6 +848,39 @@ async function init(){
   const data=calcScoreFromProjects();
   renderScore(data.score,data);
   saveMonthlySnapshot();
+
+  // ── Debug panel: auto-shows if task data didn't load ───────────────────
+  const anyReal = PROJECTS.some(p => p._wdsLoaded);
+  if (!anyReal) {
+    const dbgEl = document.getElementById('debug-el');
+    if (dbgEl) {
+      dbgEl.style.display = 'block';
+      dbgEl.innerHTML = '<b>⚠ Task data not loading — reading Notion property names…</b><br>';
+      // Fetch first active project to see its property names
+      try {
+        const fp = PROJECTS.find(p => !p.done && p.id);
+        if (fp) {
+          const {props:pp} = await window.tl.fetchPage(fp.id);
+          const relKeys = Object.entries(pp)
+            .filter(([k,v]) => Array.isArray(v))
+            .map(([k,v]) => `"${k}"(${v.length})`).join(', ');
+          const allKeys = Object.keys(pp).filter(k=>!k.startsWith('date:')).sort().join(', ');
+          dbgEl.innerHTML += `<b>Project "${fp.name}" — all props:</b> ${allKeys}<br>`;
+          dbgEl.innerHTML += `<b>Array/relation props:</b> ${relKeys||'(none found)'}<br>`;
+        }
+      } catch(e){ dbgEl.innerHTML += `Project fetch error: ${e.message}<br>`; }
+      // Fetch first task to see its property names
+      try {
+        const {props:tp, title:tt} = await window.tl.fetchPage(TASK_IDS[0]);
+        const relKeys = Object.entries(tp)
+          .filter(([k,v]) => Array.isArray(v))
+          .map(([k,v]) => `"${k}"(${v.length})`).join(', ');
+        const allKeys = Object.keys(tp).filter(k=>!k.startsWith('date:')).sort().join(', ');
+        dbgEl.innerHTML += `<b>Task "${tt}" — all props:</b> ${allKeys}<br>`;
+        dbgEl.innerHTML += `<b>Array/relation props:</b> ${relKeys||'(none found)'}`;
+      } catch(e){ dbgEl.innerHTML += `Task fetch error: ${e.message}`; }
+    }
+  }
 }
 
 // ── Hub / Detail navigation ───────────────────────────────────────────────
