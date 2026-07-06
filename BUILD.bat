@@ -1,32 +1,40 @@
 @echo off
-title TL Design Team — Build Installer
+cd /d "%~dp0"
+title TL Design Team - Build
 echo.
-echo  =============================================
-echo   TL Design Team — Building Windows Installer
-echo  =============================================
+echo  ============================================
+echo   TL Design Team - Building Windows Installer
+echo  ============================================
 echo.
 
 :: Check Node.js
 where node >nul 2>&1
 if errorlevel 1 (
     echo  ERROR: Node.js is not installed.
-    echo  Please download it from https://nodejs.org and run this again.
-    pause
-    exit /b 1
+    echo  Please download it from https://nodejs.org
+    goto :end
 )
 
-echo  [1/3] Cleaning old files...
-if exist node_modules (
-    rmdir /s /q node_modules
+echo  [0/3] Closing any running app instances...
+taskkill /f /im "TL Design Team.exe" /t >nul 2>&1
+timeout /t 2 /nobreak >nul
+
+echo  [1/3] Moving old dist out of the way...
+if exist _dist_old ( rd /s /q _dist_old >nul 2>&1 )
+if exist dist (
+    ren dist _dist_old >nul 2>&1
+    if exist dist (
+        echo  ERROR: Could not move dist folder.
+        goto :end
+    )
 )
 
 echo  [2/3] Installing dependencies...
 call npm install
 if errorlevel 1 (
     echo.
-    echo  ERROR: npm install failed. Check your internet connection.
-    pause
-    exit /b 1
+    echo  ERROR: npm install failed.
+    goto :end
 )
 
 echo.
@@ -35,16 +43,20 @@ call npx electron-builder --win --x64
 if errorlevel 1 (
     echo.
     echo  ERROR: Build failed. See output above.
-    pause
-    exit /b 1
+    goto :end
 )
 
+:: Clean up the old renamed folder in the background
+if exist _dist_old ( rd /s /q _dist_old >nul 2>&1 )
+
 echo.
-echo  Done!
-echo.
-echo  Your installer is in the "dist" folder.
-echo  Run "TL Design Team Setup 1.0.0.exe" to install the app.
-echo  After installing you can pin it to your taskbar.
+echo  ============================================
+echo   SUCCESS! Installer is in the dist folder.
+echo   Run: TL Design Team Setup 1.0.7.exe
+echo  ============================================
 echo.
 explorer dist
+
+:end
+echo.
 pause
