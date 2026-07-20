@@ -85,6 +85,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .phase-group-hdr.p1 .phase-group-dot{background:#8b5cf6}
 .phase-group-hdr.p2 .phase-group-title{color:#67e8f9}
 .phase-group-hdr.p2 .phase-group-dot{background:#0891b2}
+.phase-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.phase-col{min-width:0}
+.phase-col .phase-group-hdr{margin-top:2px}
+.phase-col-empty{font-size:11px;color:#3f3f46;padding:8px 0}
+@media(max-width:680px){.phase-columns{grid-template-columns:1fr;gap:0}}
 
 .proj-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .proj-name{font-weight:700;font-size:13px;letter-spacing:-.2px}
@@ -985,17 +990,21 @@ function renderAll(){
     `<div class="phase-group-hdr ${cls}"><span class="phase-group-dot"></span>` +
     `<span class="phase-group-title">${title}</span><span class="phase-group-sub">${sub}</span>` +
     `<span class="line"></span><span class="phase-group-count">${n}</span></div>`;
+  const rows = list => list.map(p => buildProjectRow(p, false)).join('');
   let activeHtml = '';
   if(!active.length){
     activeHtml = '<div style="color:#525252;font-size:12px;padding:10px 0">No active projects</div>';
+  } else if(phase1.length && phase2.length){
+    // Both phases present → two side-by-side columns
+    const col = (cls, title, sub, list) =>
+      `<div class="phase-col">${groupHdr(cls, title, sub, list.length)}${rows(list) || '<div class="phase-col-empty">None</div>'}</div>`;
+    activeHtml = `<div class="phase-columns">${col('p1','Phase 1','Design',phase1)}${col('p2','Phase 2','Execution',phase2)}</div>`;
+  } else if(phase2.length){
+    // Only Phase 2 active
+    activeHtml = groupHdr('p2','Phase 2','Execution',phase2.length) + rows(phase2);
   } else {
-    // If every active project is Phase 1, don't bother with group headers.
-    if(phase2.length === 0){
-      activeHtml = phase1.map(p => buildProjectRow(p, false)).join('');
-    } else {
-      if(phase1.length) activeHtml += groupHdr('p1', 'Phase 1', 'Design', phase1.length) + phase1.map(p => buildProjectRow(p, false)).join('');
-      if(phase2.length) activeHtml += groupHdr('p2', 'Phase 2', 'Execution', phase2.length) + phase2.map(p => buildProjectRow(p, false)).join('');
-    }
+    // Only Phase 1 active → flat, no header needed
+    activeHtml = rows(phase1);
   }
   document.getElementById('projects-el').innerHTML = activeHtml;
 
