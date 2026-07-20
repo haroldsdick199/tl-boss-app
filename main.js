@@ -243,6 +243,7 @@ function createWindow() {
     width: 940, height: 780, minWidth: 620, minHeight: 520,
     backgroundColor: '#0a0a0a',
     title: 'TL Design Team',
+    icon: path.join(__dirname, 'build', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

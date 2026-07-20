@@ -73,6 +73,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .proj-row.ok  {border-left:2px solid #16a34a}
 .proj-row.upcoming-row{border-left:2px solid #3f3f46;opacity:.7;cursor:default}
 
+/* phase group subheaders */
+.phase-group-hdr{display:flex;align-items:center;gap:9px;margin:18px 0 10px}
+.phase-group-hdr:first-child{margin-top:2px}
+.phase-group-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.phase-group-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.phase-group-sub{font-size:10px;font-weight:600;color:#525252;letter-spacing:.02em}
+.phase-group-count{font-size:9px;font-weight:700;color:#a1a1aa;background:#1a1a1a;border:1px solid #262626;border-radius:999px;padding:1px 8px}
+.phase-group-hdr .line{flex:1;height:1px;background:#1a1a1a}
+.phase-group-hdr.p1 .phase-group-title{color:#a78bfa}
+.phase-group-hdr.p1 .phase-group-dot{background:#8b5cf6}
+.phase-group-hdr.p2 .phase-group-title{color:#67e8f9}
+.phase-group-hdr.p2 .phase-group-dot{background:#0891b2}
+
 .proj-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap}
 .proj-name{font-weight:700;font-size:13px;letter-spacing:-.2px}
 .proj-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -507,6 +520,7 @@ function completionDate(end, lastEdited){
 function mapProject(row){
   const props = row.props || {};
   const status = props['Status'] || '';
+  const stage  = props['Stage'] || '';   // "Phase 1 - Design" | "Phase 2 - Execution" | "Complete" | ""
   const start  = props['date:Date Range:start'] || null;
   const end    = props['date:Date Range:end']   || null;
   const des = typeof props['Design Days']   === 'number' ? Math.round(props['Design Days'])   : 0;
@@ -529,6 +543,8 @@ function mapProject(row){
     archived: /archiv/i.test(status),
     upcoming: /upcoming/i.test(status),
     waiting:  /waiting|feedback|hold/i.test(status),
+    stage,
+    phase2:   /phase\s*2|execution/i.test(stage),   // blank/Phase 1 → Phase 1 by default
     start, end,
     lastEdited: props['Last edited time'] || '',
     designDays: des, draftingDays: dra, quotingDays: quo,
@@ -961,9 +977,27 @@ function renderAll(){
     `<div class="leg-item"><div class="leg-swatch quote"></div><div class="leg-text">Quote <span>+${D_QUOTE} days</span></div></div>` +
     `<div class="leg-item"><div class="leg-swatch over"></div><div class="leg-text">Over standard <span>&gt;${D_STD} days</span></div></div>`;
 
-  document.getElementById('projects-el').innerHTML =
-    active.length ? active.map(p => buildProjectRow(p, false)).join('')
-                  : '<div style="color:#525252;font-size:12px;padding:10px 0">No active projects</div>';
+  // Split active projects by Stage: Phase 1 (Design) vs Phase 2 (Execution).
+  // Blank/"Phase 1 - Design" → Phase 1; only explicit "Phase 2 - Execution" → Phase 2.
+  const phase1 = active.filter(p => !p.phase2);
+  const phase2 = active.filter(p =>  p.phase2);
+  const groupHdr = (cls, title, sub, n) =>
+    `<div class="phase-group-hdr ${cls}"><span class="phase-group-dot"></span>` +
+    `<span class="phase-group-title">${title}</span><span class="phase-group-sub">${sub}</span>` +
+    `<span class="line"></span><span class="phase-group-count">${n}</span></div>`;
+  let activeHtml = '';
+  if(!active.length){
+    activeHtml = '<div style="color:#525252;font-size:12px;padding:10px 0">No active projects</div>';
+  } else {
+    // If every active project is Phase 1, don't bother with group headers.
+    if(phase2.length === 0){
+      activeHtml = phase1.map(p => buildProjectRow(p, false)).join('');
+    } else {
+      if(phase1.length) activeHtml += groupHdr('p1', 'Phase 1', 'Design', phase1.length) + phase1.map(p => buildProjectRow(p, false)).join('');
+      if(phase2.length) activeHtml += groupHdr('p2', 'Phase 2', 'Execution', phase2.length) + phase2.map(p => buildProjectRow(p, false)).join('');
+    }
+  }
+  document.getElementById('projects-el').innerHTML = activeHtml;
 
   const upT = document.getElementById('upcoming-toggle');
   if(upcoming.length){ upT.style.display = 'flex'; document.getElementById('upcoming-list').innerHTML = upcoming.map(p => buildProjectRow(p, false)).join(''); }
