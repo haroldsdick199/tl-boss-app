@@ -260,6 +260,37 @@ body.behind .pulse-dot{background:#dc2626}
 .task-item-status{font-size:9px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap;flex-shrink:0}
 .big-tbar-track{height:12px;background:#1a1a1a;border-radius:999px;overflow:hidden;position:relative;margin-bottom:20px}
 
+/* milestone / delivery schedule */
+.ms-track{position:relative;height:2px;background:#2a2a2a;border-radius:999px;margin:34px 6px 8px}
+.ms-progress{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#7c3aed,#8b5cf6);border-radius:999px}
+.ms-dot{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;transform:translate(-50%,-50%);border:2px solid #111;z-index:2}
+.ms-dot.done{background:#8b5cf6}
+.ms-dot.next{background:#fbbf24;box-shadow:0 0 0 4px rgba(217,119,6,.18)}
+.ms-dot.future{background:#3f3f46}
+.ms-dot-lbl{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;letter-spacing:.03em;white-space:nowrap;color:#737373}
+.ms-dot-date{position:absolute;top:16px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:600;white-space:nowrap;color:#525252}
+.ms-today{position:absolute;top:-6px;bottom:-6px;width:2px;background:#fff;opacity:.55;z-index:1}
+.ms-list{display:flex;flex-direction:column;gap:5px;margin-top:26px}
+.ms-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#111;border:1px solid #1f1f1f;border-radius:8px}
+.ms-item.next-item{border-color:rgba(217,119,6,.4)}
+.ms-item-icon{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.ms-item-name{flex:1;font-size:11.5px;font-weight:700;color:#e4e4e7}
+.ms-item-date{font-size:10.5px;font-weight:600;color:#a1a1aa}
+.ms-item-tag{font-size:8.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:999px}
+.ms-deliver-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:linear-gradient(90deg,rgba(124,58,237,.12),rgba(139,92,246,.05));border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:14px 18px;margin-bottom:18px}
+.ms-deliver-banner .dl-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#a78bfa}
+.ms-deliver-banner .dl-date{font-size:22px;font-weight:800;letter-spacing:-.5px;color:#e4e4e7}
+.ms-deliver-banner .dl-next{font-size:11px;font-weight:600;color:#a1a1aa;text-align:right}
+
+/* hub upcoming deliverables */
+.upcoming-deliverables{background:#111;border:1px solid #1f1f1f;border-radius:8px;padding:12px 16px;margin-bottom:14px}
+.ud-title{font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px}
+.ud-item{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #1a1a1a}
+.ud-item:first-of-type{border-top:none}
+.ud-proj{font-size:11px;font-weight:700;color:#e4e4e7;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ud-ms{font-size:10px;font-weight:600;color:#a1a1aa;white-space:nowrap}
+.ud-when{font-size:10px;font-weight:700;white-space:nowrap;min-width:64px;text-align:right}
+
 /* ── RESPONSIVE ───────────────────────────── */
 @media(min-width:1040px){
   #hub-view{display:grid;grid-template-columns:minmax(340px,420px) 1fr;align-items:start}
@@ -314,6 +345,7 @@ body.behind .pulse-dot{background:#dc2626}
     <button id="refresh-btn" onclick="refreshFromNotion()" title="Refresh data from Notion" style="background:none;border:1px solid #2a2a2a;border-radius:6px;color:#525252;font-size:10px;font-weight:700;padding:5px 10px;cursor:pointer;letter-spacing:.05em;transition:all .15s" onmouseover="this.style.borderColor='#525252';this.style.color='#a1a1aa'" onmouseout="this.style.borderColor='#2a2a2a';this.style.color='#525252'">&#8635; Refresh</button>
   </div>
   <div class="avg-banner" id="avg-banner" style="display:none"></div>
+  <div id="upcoming-deliverables-el"></div>
   <div class="bar-legend" id="bar-legend"></div>
   <div id="projects-el"><div style="color:#525252;font-size:12px;padding:10px 0">Loading&hellip;</div></div>
 
@@ -361,6 +393,17 @@ const D_DESIGN = 40, D_DRAW = 15, D_QUOTE = 15, D_STD = D_DESIGN + D_DRAW + D_QU
 const PROJECTS_DB_ID = '3092b8ff-1ebd-8199-bf94-ca7053d4d0a4';
 const CACHE_KEY  = 'tl-cache-v10';
 const OLD_CACHE_KEYS = ['tl-boss-v9'];
+
+// Client-deliverable milestones, in fixed order. The scheduling chat writes
+// these date properties onto each Projects row when a schedule is confirmed.
+// A Phase-2 "Completion Date" milestone can be appended here later.
+const MILESTONE_DEFS = [
+  { key: 'Design Direction Date', label: 'Design Direction', short: 'Design Dir.' },
+  { key: '3D Model Date',         label: '3D Model',         short: '3D Model'   },
+  { key: 'Renderings Date',       label: 'Renderings',       short: 'Renderings' },
+  { key: 'Pricing Date',          label: 'Pricing',          short: 'Pricing'    },
+  { key: 'Drawings Date',         label: 'Drawings',         short: 'Drawings'   }
+];
 const REFRESH_EVERY_MS = 10 * 60 * 1000;   // background auto-refresh
 const DONE_WINDOW_DAYS = 75;               // how long completed projects stay listed
 
@@ -471,6 +514,13 @@ function mapProject(row){
   const quo = typeof props['Quoting Days']  === 'number' ? Math.round(props['Quoting Days'])  : 0;
   const rel = props['Tasks'] || props['Task'] || props['Actions'] || [];
   const hex = (row.id||'').replace(/-/g,'');
+
+  // Milestones: read each deliverable's date (blank if not scheduled), keep only set ones
+  const milestones = MILESTONE_DEFS
+    .map(m => ({ label: m.label, short: m.short, date: (props['date:' + m.key + ':start'] || '').substring(0,10) || null }))
+    .filter(m => m.date)
+    .sort((a,b) => a.date.localeCompare(b.date));
+
   return {
     id: row.id,
     name: row.title || props['Name'] || 'Untitled',
@@ -487,8 +537,106 @@ function mapProject(row){
     taskCount: Array.isArray(rel) ? rel.length : 0,
     url: 'https://www.notion.so/' + hex,
     cr: 0,
+    milestones,
     _tasks: null
   };
+}
+
+// Delivery date = latest scheduled milestone; next = first milestone still ahead.
+function deliveryInfo(p){
+  const ms = p.milestones || [];
+  if(!ms.length) return { delivery: null, next: null, daysToNext: null, allDone: false };
+  const delivery = ms[ms.length - 1].date;
+  const next = ms.find(m => m.date >= TODAY_STR) || null;
+  return {
+    delivery,
+    next,
+    daysToNext: next ? daysBetween(TODAY_STR, new Date(next.date + 'T00:00:00')) : null,
+    allDone: !next
+  };
+}
+
+// Full delivery-schedule section for the detail view ('' when no schedule exists)
+function scheduleSection(p){
+  const ms = (p.milestones || []);
+  if(!ms.length) return '';
+  const di = deliveryInfo(p);
+
+  // Timeline range: earliest of project start / first milestone → delivery date
+  const startAnchor = [p.start, ms[0].date].filter(Boolean).sort()[0];
+  const endAnchor   = di.delivery;
+  const t0 = new Date(startAnchor + 'T00:00:00').getTime();
+  const t1 = new Date(endAnchor   + 'T00:00:00').getTime();
+  const span = Math.max(1, t1 - t0);
+  const pct = ds => Math.max(0, Math.min(100, (new Date(ds + 'T00:00:00').getTime() - t0) / span * 100));
+
+  const nextDate = di.next ? di.next.date : null;
+  const dots = ms.map(m => {
+    const state = m.date < TODAY_STR ? 'done' : (m.date === nextDate ? 'next' : 'future');
+    return `<div class="ms-dot ${state}" style="left:${pct(m.date)}%">
+      <span class="ms-dot-lbl">${esc(m.short)}</span>
+      <span class="ms-dot-date">${fmtDate(m.date)}</span>
+    </div>`;
+  }).join('');
+  const progressPct = di.allDone ? 100 : (nextDate ? pct(nextDate) : 0);
+  const todayMarker = (TODAY_STR >= startAnchor && TODAY_STR <= endAnchor)
+    ? `<div class="ms-today" style="left:${pct(TODAY_STR)}%"></div>` : '';
+
+  const list = ms.map(m => {
+    const done = m.date < TODAY_STR;
+    const isNext = m.date === nextDate;
+    const col = done ? '#4ade80' : isNext ? '#fbbf24' : '#3f3f46';
+    const tag = done
+      ? `<span class="ms-item-tag" style="background:rgba(74,222,128,.1);color:#4ade80">&#10003; Delivered</span>`
+      : isNext
+        ? `<span class="ms-item-tag" style="background:rgba(217,119,6,.15);color:#fbbf24">Next up</span>`
+        : `<span class="ms-item-tag" style="background:#1a1a1a;color:#737373">Upcoming</span>`;
+    return `<div class="ms-item ${isNext?'next-item':''}">
+      <span class="ms-item-icon" style="background:${col}"></span>
+      <span class="ms-item-name">${esc(m.label)}</span>
+      <span class="ms-item-date">${fmtDate(m.date)}</span>
+      ${tag}
+    </div>`;
+  }).join('');
+
+  const nextLine = di.allDone
+    ? `<span style="color:#4ade80">&#10003; All deliverables met</span>`
+    : `Next: <span style="color:#fbbf24;font-weight:700">${esc(di.next.label)}</span> ${fmtDate(di.next.date)}` +
+      (di.daysToNext === 0 ? ' · today' : di.daysToNext === 1 ? ' · tomorrow' : ` · in ${di.daysToNext} days`);
+
+  return `
+  <div class="d-section-lbl">Delivery Schedule</div>
+  <div class="ms-deliver-banner">
+    <div><div class="dl-lbl">Client Delivery</div><div class="dl-date">${fmtDate(di.delivery)}</div></div>
+    <div class="dl-next">${nextLine}</div>
+  </div>
+  <div class="ms-track">
+    <div class="ms-progress" style="width:${progressPct}%"></div>
+    ${todayMarker}
+    ${dots}
+  </div>
+  <div class="ms-list">${list}</div>
+  <div style="height:24px"></div>`;
+}
+
+// Compact milestone line for a hub project row ('' when no schedule exists)
+function milestoneRowLine(p){
+  const di = deliveryInfo(p);
+  if(!di.delivery) return '';
+  let nextTxt;
+  if(di.allDone){
+    nextTxt = `<span style="color:#4ade80">&#10003; All deliverables met</span>`;
+  } else {
+    const d = di.daysToNext;
+    const when = d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`;
+    const col  = d <= 3 ? '#fbbf24' : '#e4e4e7';
+    nextTxt = `<span style="color:#737373">Next:</span> <span style="color:${col};font-weight:700">${esc(di.next.label)}</span> <span style="color:#737373">${fmtDate(di.next.date)} · ${when}</span>`;
+  }
+  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:9.5px;font-weight:600;margin:2px 0 6px">
+    <span style="color:#a78bfa">&#9873;</span>${nextTxt}
+    <span style="color:#2a2a2a">&middot;</span>
+    <span style="color:#737373">Delivery</span> <span style="color:#c4b5fd;font-weight:700">${fmtDate(di.delivery)}</span>
+  </div>`;
 }
 
 async function refreshFromNotion(){
@@ -715,7 +863,7 @@ function buildProjectRow(p, isDone){
   }
 
   // ── Active project row ──
-  const calDays = p.start ? daysBetween(p.start, TODAY) : 0;
+  const calDays = p.start ? Math.max(0, daysBetween(p.start, TODAY)) : 0;
   const hasReal = p._wdsLoaded === true;
   const elapsed = hasReal ? Math.round(p.wds) : calDays;
   const dDesign = p.designDays || 0, dDraft = p.draftingDays || 0, dQuote = p.quotingDays || 0;
@@ -782,6 +930,7 @@ function buildProjectRow(p, isDone){
     <div class="tbar-today"    style="left:${todayPct}%"></div>
   </div>
   <div style="font-size:9.5px;font-weight:600;margin:4px 0 6px;letter-spacing:.01em">${phaseParts.join(dot)}</div>
+  ${milestoneRowLine(p)}
   <div class="proj-bottom">
     <div class="proj-day-info">
       ${hasReal
@@ -845,8 +994,36 @@ function renderAll(){
       `<div class="avg-note">${active.length} active projects &middot; Standard: Design ${D_DESIGN}d + Drafting ${D_DRAW}d + Quote ${D_QUOTE}d = ${D_STD}d</div>`;
   } else banner.style.display = 'none';
 
+  renderUpcomingDeliverables();
+
   const data = calcScoreFromProjects();
   renderScore(data.score, data);
+}
+
+// Hub-wide "what's due next": next upcoming milestone per non-done project, soonest first
+function renderUpcomingDeliverables(){
+  const el = document.getElementById('upcoming-deliverables-el');
+  const rows = PROJECTS
+    .filter(p => !p.done)
+    .map(p => ({ p, di: deliveryInfo(p) }))
+    .filter(x => x.di.next)
+    .sort((a,b) => a.di.next.date.localeCompare(b.di.next.date));
+
+  if(!rows.length){ el.innerHTML = ''; return; }
+
+  el.innerHTML = `<div class="upcoming-deliverables">
+    <div class="ud-title">&#9873; Upcoming Deliverables</div>
+    ${rows.map(({p, di}) => {
+      const d = di.daysToNext;
+      const when = d === 0 ? 'today' : d === 1 ? 'tomorrow' : `${d} days`;
+      const col  = d <= 3 ? '#fbbf24' : d <= 10 ? '#c4b5fd' : '#737373';
+      return `<div class="ud-item" onclick="showDetail('${esc(p.name).replace(/'/g,"\\'")}')" style="cursor:pointer">
+        <span class="ud-proj">${esc(p.name)}</span>
+        <span class="ud-ms">${esc(di.next.label)}</span>
+        <span class="ud-when" style="color:${col}">${fmtDate(di.next.date)} · ${when}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -938,7 +1115,7 @@ async function showDetail(name){
 
 function renderDetail(p){
   const isDone  = !!p.done;
-  const calDays = p.start ? daysBetween(p.start, isDone && p.completion ? new Date(p.completion + 'T00:00:00') : TODAY) : 0;
+  const calDays = p.start ? Math.max(0, daysBetween(p.start, isDone && p.completion ? new Date(p.completion + 'T00:00:00') : TODAY)) : 0;
   const des = p.designDays || 0, dra = p.draftingDays || 0, quo = p.quotingDays || 0;
   const totalWds = des + dra + quo;
   const overWds  = Math.max(0, totalWds - D_STD);
@@ -1024,7 +1201,9 @@ function renderDetail(p){
     <div class="dstat"><div class="dstat-n" style="color:${sState==='great'?'#a78bfa':sState==='good'?'#4ade80':sState==='fair'?'#fbbf24':'#f87171'}">${score}</div><div class="dstat-l">Score</div></div>
   </div>
 
-  <div class="d-section-lbl">Phase Timeline</div>
+  ${scheduleSection(p)}
+
+  <div class="d-section-lbl">Working Time — Phase Timeline</div>
   <div class="big-tbar-track" style="margin-bottom:6px">
     <div class="tbar-design"   style="width:${dW}%"></div>
     <div class="tbar-drafting" style="left:${dW}%;width:${drW}%"></div>
