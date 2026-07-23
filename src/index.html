@@ -300,14 +300,32 @@ body.behind .pulse-dot{background:#dc2626}
 .ms-deliver-banner .dl-date{font-size:22px;font-weight:800;letter-spacing:-.5px;color:#e4e4e7}
 .ms-deliver-banner .dl-next{font-size:11px;font-weight:600;color:#a1a1aa;text-align:right}
 
-/* hub upcoming deliverables */
-.upcoming-deliverables{background:#111;border:1px solid #1f1f1f;border-radius:8px;padding:12px 16px;margin-bottom:14px}
-.ud-title{font-size:9.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#a78bfa;margin-bottom:10px}
-.ud-item{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid #1a1a1a}
-.ud-item:first-of-type{border-top:none}
-.ud-proj{font-size:11px;font-weight:700;color:#e4e4e7;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.ud-ms{font-size:10px;font-weight:600;color:#a1a1aa;white-space:nowrap}
-.ud-when{font-size:10px;font-weight:700;white-space:nowrap;min-width:64px;text-align:right}
+/* hub upcoming deliverables — the hero */
+.deliverables-hero{margin-bottom:24px}
+.dh-title{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#a78bfa;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.dh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.dh-card{background:#111;border:1px solid #1f1f1f;border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .15s,transform .15s;display:flex;flex-direction:column;gap:2px}
+.dh-card:hover{border-color:#3f3f46;transform:translateY(-1px)}
+.dh-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px}
+.dh-proj{font-size:11.5px;font-weight:700;color:#e4e4e7;letter-spacing:-.2px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dh-phase{font-size:7.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:999px;flex-shrink:0}
+.dh-phase.p1{background:rgba(139,92,246,.15);color:#a78bfa}
+.dh-phase.p2{background:rgba(8,145,178,.15);color:#67e8f9}
+.dh-ms{font-size:10px;font-weight:600;color:#a1a1aa;letter-spacing:.02em;margin-bottom:6px}
+.dh-date{font-size:24px;font-weight:800;letter-spacing:-.5px;line-height:1;font-variant-numeric:tabular-nums}
+.dh-count{font-size:10px;font-weight:700;letter-spacing:.03em;margin-top:3px}
+@keyframes softpulse{0%,100%{opacity:1}50%{opacity:.72}}
+.dh-date.urgent{animation:softpulse 1.8s ease-in-out infinite}
+
+/* compact hub legend (replaces the big stats banner) */
+.hub-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:20px;padding:10px 14px;background:#0e0e0e;border:1px solid #1a1a1a;border-radius:8px;font-size:10px;font-weight:600;color:#737373}
+.hub-legend .hl-item{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.hub-legend .sw{width:16px;height:4px;border-radius:999px;flex-shrink:0}
+.hub-legend .sw.design{background:linear-gradient(90deg,#7c3aed,#8b5cf6)}
+.hub-legend .sw.drafting{background:linear-gradient(90deg,#0e7490,#0891b2)}
+.hub-legend .sw.quote{background:linear-gradient(90deg,#b45309,#d97706)}
+.hub-legend .hl-sep{color:#2a2a2a}
+.hub-legend .hl-strong{color:#a1a1aa;font-weight:700}
 
 /* ── RESPONSIVE ───────────────────────────── */
 @media(min-width:1040px){
@@ -358,13 +376,11 @@ body.behind .pulse-dot{background:#dc2626}
 </div>
 
 <div class="projects-section">
+  <div id="upcoming-deliverables-el"></div>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
     <div class="section-label" style="margin-bottom:0;flex:1">Active Projects</div>
     <button id="refresh-btn" onclick="refreshFromNotion()" title="Refresh data from Notion" style="background:none;border:1px solid #2a2a2a;border-radius:6px;color:#525252;font-size:10px;font-weight:700;padding:5px 10px;cursor:pointer;letter-spacing:.05em;transition:all .15s" onmouseover="this.style.borderColor='#525252';this.style.color='#a1a1aa'" onmouseout="this.style.borderColor='#2a2a2a';this.style.color='#525252'">&#8635; Refresh</button>
   </div>
-  <div class="avg-banner" id="avg-banner" style="display:none"></div>
-  <div id="upcoming-deliverables-el"></div>
-  <div class="bar-legend" id="bar-legend"></div>
   <div id="projects-el"><div style="color:#525252;font-size:12px;padding:10px 0">Loading&hellip;</div></div>
 
   <div class="completed-toggle" id="upcoming-toggle" style="display:none" onclick="toggleSection('upcoming')">
@@ -378,6 +394,7 @@ body.behind .pulse-dot{background:#dc2626}
     <span class="toggle-arrow" id="completed-arrow">&#9654;</span>
   </div>
   <div class="completed-list" id="completed-list"></div>
+  <div class="hub-legend" id="hub-legend" style="display:none"></div>
   <div style="font-size:9.5px;color:#3f3f46;margin-top:14px;text-align:right" id="sync-line"></div>
 </div>
 
@@ -640,23 +657,37 @@ function scheduleSection(p){
   <div style="height:24px"></div>`;
 }
 
+// Color + glow for a delivery date, by how close it is. The nearer (or overdue),
+// the hotter and stronger the glow — so Harold can feel urgency at a glance.
+function proximity(days){
+  if(days === null || days === undefined) return { color:'#737373', glow:'none', urgent:false };
+  if(days < 0)   return { color:'#f87171', glow:'0 0 16px rgba(248,113,113,.75)', urgent:true  };
+  if(days <= 3)  return { color:'#fb7185', glow:'0 0 15px rgba(251,113,133,.7)',  urgent:true  };
+  if(days <= 7)  return { color:'#fbbf24', glow:'0 0 13px rgba(251,191,36,.6)',   urgent:false };
+  if(days <= 14) return { color:'#a78bfa', glow:'0 0 11px rgba(167,139,250,.5)',  urgent:false };
+  return               { color:'#4ade80', glow:'0 0 9px rgba(74,222,128,.4)',    urgent:false };
+}
+function countdownLabel(days){
+  if(days === null || days === undefined) return '';
+  if(days < 0)  return Math.abs(days) + 'd overdue';
+  if(days === 0) return 'due today';
+  if(days === 1) return 'due tomorrow';
+  return 'in ' + days + ' days';
+}
+
 // Compact milestone line for a hub project row ('' when no schedule exists)
 function milestoneRowLine(p){
   const di = deliveryInfo(p);
   if(!di.delivery) return '';
-  let nextTxt;
   if(di.allDone){
-    nextTxt = `<span style="color:#4ade80">&#10003; All deliverables met</span>`;
-  } else {
-    const d = di.daysToNext;
-    const when = d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`;
-    const col  = d <= 3 ? '#fbbf24' : '#e4e4e7';
-    nextTxt = `<span style="color:#737373">Next:</span> <span style="color:${col};font-weight:700">${esc(di.next.label)}</span> <span style="color:#737373">${fmtDate(di.next.date)} · ${when}</span>`;
+    return `<div style="font-size:10px;font-weight:700;color:#4ade80;margin:6px 0 2px">&#10003; All deliverables met</div>`;
   }
-  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:9.5px;font-weight:600;margin:2px 0 6px">
-    <span style="color:#a78bfa">&#9873;</span>${nextTxt}
-    <span style="color:#2a2a2a">&middot;</span>
-    <span style="color:#737373">Delivery</span> <span style="color:#c4b5fd;font-weight:700">${fmtDate(di.delivery)}</span>
+  const px = proximity(di.daysToNext);
+  return `<div style="display:flex;align-items:baseline;gap:7px;flex-wrap:wrap;margin:6px 0 2px">
+    <span style="color:#737373;font-size:9.5px;font-weight:600">Next</span>
+    <span style="color:#e4e4e7;font-size:10.5px;font-weight:700">${esc(di.next.label)}</span>
+    <span style="color:${px.color};font-size:11px;font-weight:800;text-shadow:${px.glow}">${fmtDate(di.next.date)}</span>
+    <span style="color:${px.color};font-size:9.5px;font-weight:700">${countdownLabel(di.daysToNext)}</span>
   </div>`;
 }
 
@@ -922,18 +953,10 @@ function buildProjectRow(p, isDone){
 
   const score  = projectScore(elapsed, p.cr);
   const sState = scoreState(score);
+  const msLine = milestoneRowLine(p);
 
-  const dot = `<span style="color:#2a2a2a;margin:0 4px">&middot;</span>`;
-  const phaseParts = [];
-  if(hasReal){
-    phaseParts.push(`<span style="color:#a78bfa">Design&nbsp;${dDesign}d</span>`);
-    if(dDraft > 0) phaseParts.push(`<span style="color:#67e8f9">Drafting&nbsp;${dDraft}d</span>`);
-    if(dQuote > 0) phaseParts.push(`<span style="color:#fbbf24">Quoting&nbsp;${dQuote}d</span>`);
-    if(over > 0)   phaseParts.push(`<span style="color:#f87171">Over&nbsp;+${over}d</span>`);
-  } else {
-    phaseParts.push(`<span style="color:#737373">No phase data yet</span>`);
-  }
-
+  // Clean hub row: name, phase/status badges, score, a slim phase bar, and the
+  // next deliverable (the star). Working-days detail lives inside the project.
   return `
 <div class="proj-row ${rowCls}" onclick="showDetail('${nameArg}')">
   <div class="proj-top">
@@ -943,23 +966,14 @@ function buildProjectRow(p, isDone){
     </div>
     <div class="proj-score ${sState}"><div class="ps-num">${score}</div><div class="ps-lbl">score</div></div>
   </div>
-  <div class="tbar-track">
+  <div class="tbar-track" style="margin-bottom:0">
     <div class="tbar-design"   style="width:${dW}%"></div>
     <div class="tbar-drafting" style="left:${dW}%;width:${drW}%"></div>
     <div class="tbar-quote"    style="left:${dW+drW}%;width:${qW}%"></div>
     <div class="tbar-over"     style="left:${dW+drW+qW}%;width:${oW}%"></div>
     <div class="tbar-today"    style="left:${todayPct}%"></div>
   </div>
-  <div style="font-size:9.5px;font-weight:600;margin:4px 0 6px;letter-spacing:.01em">${phaseParts.join(dot)}</div>
-  ${milestoneRowLine(p)}
-  <div class="proj-bottom">
-    <div class="proj-day-info">
-      ${hasReal
-        ? `<span style="color:#e4e4e7;font-weight:700">${elapsed}d working</span><span style="color:#525252">&nbsp;&middot;&nbsp;${calDays}d calendar</span>`
-        : `<span style="color:#737373">${calDays}d calendar</span>`}
-      &nbsp;&middot;&nbsp;${p.taskCount} tasks
-    </div>
-  </div>
+  ${msLine || ''}
 </div>`;
 }
 
@@ -974,13 +988,6 @@ function renderAll(){
   const active   = PROJECTS.filter(p => !p.done && !p.upcoming);
   const upcoming = PROJECTS.filter(p => p.upcoming);
   const done     = PROJECTS.filter(p => p.done).sort((a,b)=>String(b.completion).localeCompare(String(a.completion)));
-
-  // legend (driven by constants so it can never drift from the real standards)
-  document.getElementById('bar-legend').innerHTML =
-    `<div class="leg-item"><div class="leg-swatch design"></div><div class="leg-text">Design <span>${D_DESIGN} days</span></div></div>` +
-    `<div class="leg-item"><div class="leg-swatch drafting"></div><div class="leg-text">Drafting <span>+${D_DRAW} days</span></div></div>` +
-    `<div class="leg-item"><div class="leg-swatch quote"></div><div class="leg-text">Quote <span>+${D_QUOTE} days</span></div></div>` +
-    `<div class="leg-item"><div class="leg-swatch over"></div><div class="leg-text">Over standard <span>&gt;${D_STD} days</span></div></div>`;
 
   // Split active projects by Stage: Phase 1 (Design) vs Phase 2 (Execution).
   // Blank/"Phase 1 - Design" → Phase 1; only explicit "Phase 2 - Execution" → Phase 2.
@@ -1016,26 +1023,23 @@ function renderAll(){
   if(done.length){ doT.style.display = 'flex'; document.getElementById('completed-list').innerHTML = done.map(p => buildProjectRow(p, true)).join(''); }
   else doT.style.display = 'none';
 
-  // average banner — uses working days when loaded
-  const banner = document.getElementById('avg-banner');
+  // compact legend (demoted from the old big stats banner): color key +
+  // the standard timeline + a small on-schedule/over count.
+  const legend = document.getElementById('hub-legend');
   if(active.length){
-    banner.style.display = 'flex';
-    const days = active.map(projDays);
-    const avgDays = Math.round(days.reduce((a,b)=>a+b,0) / days.length);
-    const overAvg = avgDays - D_STD;
     const onTrack = active.filter(p => projDays(p) <= D_STD).length;
-    banner.innerHTML =
-      `<div class="avg-stat"><div class="avg-num" style="color:${overAvg>0?'#f87171':'#4ade80'}">${avgDays}d</div><div class="avg-lbl">Avg working days</div></div>` +
-      `<div class="avg-sep"></div>` +
-      `<div class="avg-stat"><div class="avg-num" style="color:#a1a1aa">${D_STD}d</div><div class="avg-lbl">Standard timeline</div></div>` +
-      `<div class="avg-sep"></div>` +
-      `<div class="avg-stat"><div class="avg-num" style="color:${overAvg>0?'#f87171':'#4ade80'}">${overAvg>0?'+':''}${overAvg}d</div><div class="avg-lbl">Vs standard</div></div>` +
-      `<div class="avg-sep"></div>` +
-      `<div class="avg-stat"><div class="avg-num" style="color:#4ade80">${onTrack}</div><div class="avg-lbl">On schedule</div></div>` +
-      `<div class="avg-sep"></div>` +
-      `<div class="avg-stat"><div class="avg-num" style="color:${active.length-onTrack>0?'#f87171':'#4ade80'}">${active.length-onTrack}</div><div class="avg-lbl">Over timeline</div></div>` +
-      `<div class="avg-note">${active.length} active projects &middot; Standard: Design ${D_DESIGN}d + Drafting ${D_DRAW}d + Quote ${D_QUOTE}d = ${D_STD}d</div>`;
-  } else banner.style.display = 'none';
+    const over    = active.length - onTrack;
+    legend.style.display = 'flex';
+    legend.innerHTML =
+      `<span class="hl-item"><span class="sw design"></span>Design ${D_DESIGN}</span>` +
+      `<span class="hl-item"><span class="sw drafting"></span>Drafting ${D_DRAW}</span>` +
+      `<span class="hl-item"><span class="sw quote"></span>Quote ${D_QUOTE}</span>` +
+      `<span class="hl-sep">|</span>` +
+      `<span>Standard <span class="hl-strong">${D_STD}d</span></span>` +
+      `<span class="hl-sep">|</span>` +
+      `<span style="color:#4ade80">${onTrack} on schedule</span>` +
+      (over > 0 ? `<span style="color:#f87171">${over} over</span>` : '');
+  } else legend.style.display = 'none';
 
   renderUpcomingDeliverables();
 
@@ -1054,18 +1058,23 @@ function renderUpcomingDeliverables(){
 
   if(!rows.length){ el.innerHTML = ''; return; }
 
-  el.innerHTML = `<div class="upcoming-deliverables">
-    <div class="ud-title">&#9873; Upcoming Deliverables</div>
+  el.innerHTML = `<div class="deliverables-hero">
+    <div class="dh-title">&#9873; Upcoming Deliverables</div>
+    <div class="dh-grid">
     ${rows.map(({p, di}) => {
-      const d = di.daysToNext;
-      const when = d === 0 ? 'today' : d === 1 ? 'tomorrow' : `${d} days`;
-      const col  = d <= 3 ? '#fbbf24' : d <= 10 ? '#c4b5fd' : '#737373';
-      return `<div class="ud-item" onclick="showDetail('${esc(p.name).replace(/'/g,"\\'")}')" style="cursor:pointer">
-        <span class="ud-proj">${esc(p.name)}</span>
-        <span class="ud-ms">${esc(di.next.label)}</span>
-        <span class="ud-when" style="color:${col}">${fmtDate(di.next.date)} · ${when}</span>
+      const px = proximity(di.daysToNext);
+      const nameArg = esc(p.name).replace(/'/g,"\\'");
+      return `<div class="dh-card" onclick="showDetail('${nameArg}')">
+        <div class="dh-card-top">
+          <span class="dh-proj">${esc(p.name)}</span>
+          <span class="dh-phase ${p.phase2 ? 'p2' : 'p1'}">${p.phase2 ? 'P2' : 'P1'}</span>
+        </div>
+        <div class="dh-ms">${esc(di.next.label)}</div>
+        <div class="dh-date ${px.urgent ? 'urgent' : ''}" style="color:${px.color};text-shadow:${px.glow}">${fmtDate(di.next.date)}</div>
+        <div class="dh-count" style="color:${px.color}">${countdownLabel(di.daysToNext)}</div>
       </div>`;
     }).join('')}
+    </div>
   </div>`;
 }
 
@@ -1121,7 +1130,6 @@ async function showDetail(name){
       const taskUrls = Array.isArray(props['Tasks']) ? props['Tasks'] : Array.isArray(props['Task']) ? props['Task'] : Array.isArray(props['Actions']) ? props['Actions'] : [];
       setBar(20);
 
-      let totalDes = 0, totalDra = 0, totalQuo = 0;
       const freshTasks = [];
       for(let ti = 0; ti < taskUrls.length; ti++){
         if(!dv.isConnected || dv.style.display === 'none') return;
@@ -1134,20 +1142,16 @@ async function showDetail(name){
           const tEnd   = tp['date:Action Date:end']   || tp['date:Date:end']   || tp['date:Timeline:end']   || tp['date:Work Date:end']   || tp['date:Deadline:end'];
           let tDays = 0;
           if(tStart && tEnd) tDays = workingDays(tStart.substring(0,10), tEnd.substring(0,10));
-          if(phase.includes('DESIGN'))     totalDes += tDays;
-          else if(phase.includes('DRAFT')) totalDra += tDays;
-          else if(phase.includes('QUOT'))  totalQuo += tDays;
           freshTasks.push({ name: title || tp['Name'] || 'Untitled', phase, status: tp['Status'] || '', start: tStart, end: tEnd, days: tDays });
         }catch(e){}
         setBar(20 + Math.round((ti + 1) / taskUrls.length * 70));
         if(ti < taskUrls.length - 1) await sleep(60);
       }
 
-      // only overwrite rollup numbers if the per-task sums found anything
-      if(totalDes + totalDra + totalQuo > 0 && !p._wdsLoaded){
-        p.designDays = totalDes; p.draftingDays = totalDra; p.quotingDays = totalQuo;
-        p.wds = totalDes + totalDra + totalQuo; p._wdsLoaded = true;
-      }
+      // Phase-day totals come from Notion's rollups (read on every hub sync),
+      // so the hub and this detail view always agree. We fetch tasks only to
+      // show the task list — never to recompute/overwrite the phase numbers
+      // (doing so made a project's figures change only after it was opened).
       p._tasks = freshTasks;
       saveCache();
       setBar(100);
