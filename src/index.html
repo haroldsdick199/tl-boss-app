@@ -258,6 +258,17 @@ body.behind .pulse-dot{background:#dc2626}
 .crm-metric{background:#111;border:1px solid #1f1f1f;border-radius:10px;padding:14px 16px;text-align:center}
 .crm-metric-n{font-size:22px;font-weight:800;line-height:1;margin-bottom:4px;letter-spacing:-.5px}
 .crm-metric-l{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#737373}
+.crm-metric-sub{font-size:9px;font-weight:500;color:#525252;margin-top:3px}
+.crm-cols2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:680px){.crm-cols2{grid-template-columns:1fr;gap:0}}
+.crm-stalled{font-size:8px;font-weight:800;letter-spacing:.06em;color:#f87171;background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);border-radius:4px;padding:1px 5px;vertical-align:1px;margin-right:2px}
+.crm-bd{background:#111;border:1px solid #1f1f1f;border-radius:10px;padding:14px 16px}
+.crm-bd-title{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#a1a1aa;margin-bottom:10px}
+.crm-bd-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.crm-bd-label{font-size:10.5px;font-weight:600;color:#a1a1aa;width:110px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crm-bd-bar-wrap{flex:1;height:6px;background:#1a1a1a;border-radius:999px;overflow:hidden}
+.crm-bd-bar{height:100%;border-radius:999px;background:linear-gradient(90deg,#7c3aed,#a78bfa);min-width:3px}
+.crm-bd-count{font-size:11px;font-weight:700;color:#e4e4e7;width:20px;text-align:right;flex-shrink:0}
 .crm-section-lbl{font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#525252;margin:24px 0 12px;display:flex;align-items:center;gap:10px}
 .crm-section-lbl::after{content:'';flex:1;height:1px;background:#1a1a1a}
 .crm-att-list{display:flex;flex-direction:column;gap:6px}
@@ -1350,10 +1361,14 @@ function mapOpp(row, companyMap){
     weighted: typeof p['Weighted Value'] === 'number' ? p['Weighted Value'] : null,
     prob: typeof p['Probability'] === 'number' ? p['Probability'] : null,
     health: p['Health'] || '',
+    risk: /🔴/.test(p['Health']||'') ? 'red' : /🟡/.test(p['Health']||'') ? 'amber' : /🟢/.test(p['Health']||'') ? 'green' : '',
     source: p['Source'] || '',
+    lostReason: p['Lost Reason'] || '',
     nextAction: p['Next Action'] || '',
     nextDate: (p['date:Next Action Date:start'] || '').substring(0,10) || null,
     close: (p['date:Expected Close:start'] || '').substring(0,10) || null,
+    daysSince: typeof p['Days Since Contact'] === 'number' ? p['Days Since Contact'] : null,
+    age: typeof p['Age (days)'] === 'number' ? p['Age (days)'] : null,
     company: companyMap[companyId] || '',
     url: 'https://www.notion.so/' + (row.id||'').replace(/-/g,'')
   };
@@ -1390,24 +1405,41 @@ async function loadCrmView(){
   }finally{ _crmLoading = false; }
 }
 
+// The CRM tab is built around the questions a business owner actually asks:
+// How much revenue is coming? What's closing soon? What's stalling / needs me?
+// Where do deals come from, and why do we lose them?
 function renderCrm(opps){
   const el = document.getElementById('crm-view');
+  const stageColor = { 'Inquiry':'#737373','Qualified':'#60a5fa','Proposal / Quote Sent':'#a78bfa','Negotiation':'#fbbf24','Won':'#4ade80','Lost':'#f87171' };
+
   const open = opps.filter(o => CRM_OPEN_STAGES.includes(o.stage));
   const won  = opps.filter(o => o.stage === 'Won');
+  const lost = opps.filter(o => o.stage === 'Lost');
   const pipeline = open.reduce((s,o) => s + (o.est || 0), 0);
   const weighted = open.reduce((s,o) => s + (o.weighted || 0), 0);
 
-  // Needs attention: open opps whose next action is due/overdue (or missing a next date)
+  const inMonth = ds => { if(!ds) return false; const d = new Date(ds+'T00:00:00'); return d.getMonth()===TODAY.getMonth() && d.getFullYear()===TODAY.getFullYear(); };
+  const closingThisMonth = open.filter(o => inMonth(o.close));
+  const closingVal = closingThisMonth.reduce((s,o)=>s+(o.est||0),0);
+  const wonThisMonth = won.filter(o => inMonth(o.close));
+  const wonMonthVal = wonThisMonth.reduce((s,o)=>s+(o.est||0),0);
+  const winRate = (won.length + lost.length) ? Math.round(won.length/(won.length+lost.length)*100) : null;
+
+  const dToNext = o => o.nextDate ? daysBetween(TODAY_STR, new Date(o.nextDate+'T00:00:00')) : null;
+  // Needs attention: red-health, overdue/soon next action, or no next action set
   const attention = open
-    .map(o => ({ o, d: o.nextDate ? daysBetween(TODAY_STR, new Date(o.nextDate+'T00:00:00')) : null }))
-    .filter(x => x.d === null || x.d <= 3)
-    .sort((a,b) => (a.d===null?9999:a.d) - (b.d===null?9999:b.d));
+    .map(o => ({ o, d: dToNext(o) }))
+    .filter(x => x.o.risk==='red' || x.d === null || x.d <= 3)
+    .sort((a,b) => {
+      const ra = a.o.risk==='red'?0:1, rb = b.o.risk==='red'?0:1;
+      if(ra !== rb) return ra - rb;
+      return (a.d===null?9998:a.d) - (b.d===null?9998:b.d);
+    });
 
-  const metric = (n, l, color) => `<div class="crm-metric"><div class="crm-metric-n" style="${color?`color:${color}`:''}">${n}</div><div class="crm-metric-l">${l}</div></div>`;
+  const metric = (n, l, color, sub) => `<div class="crm-metric"><div class="crm-metric-n" style="${color?`color:${color}`:''}">${n}</div><div class="crm-metric-l">${l}</div>${sub?`<div class="crm-metric-sub">${sub}</div>`:''}</div>`;
 
-  // Funnel: count + value per open stage, bar width by count
+  // Funnel by open stage — count + value, bar width by count
   const maxCount = Math.max(1, ...CRM_OPEN_STAGES.map(s => opps.filter(o => o.stage === s).length));
-  const stageColor = { 'Inquiry':'#737373','Qualified':'#60a5fa','Proposal / Quote Sent':'#a78bfa','Negotiation':'#fbbf24' };
   const funnel = CRM_OPEN_STAGES.map(s => {
     const list = opps.filter(o => o.stage === s);
     const val = list.reduce((a,o)=>a+(o.est||0),0);
@@ -1420,30 +1452,57 @@ function renderCrm(opps){
 
   const attentionHtml = attention.length ? attention.map(({o,d}) => {
     const px = proximity(d);
-    const when = d === null ? 'no date set' : countdownLabel(d);
+    const stalled = o.risk === 'red';
+    const dateColor = stalled && d === null ? '#f87171' : px.color;
+    const dateGlow  = stalled && d === null ? '0 0 14px rgba(248,113,113,.6)' : px.glow;
     return `<div class="crm-att-row" onclick="window.tl.openExternal('${o.url}')">
       <div style="min-width:0;flex:1">
-        <div class="crm-att-name">${esc(o.name)}${o.company?`<span class="crm-att-co"> · ${esc(o.company)}</span>`:''}</div>
-        <div class="crm-att-action">${o.nextAction ? esc(o.nextAction) : '<span style=\"color:#525252\">No next action set</span>'}</div>
+        <div class="crm-att-name">${stalled?'<span class="crm-stalled">STALLED</span> ':''}${esc(o.name)}${o.company?`<span class="crm-att-co"> · ${esc(o.company)}</span>`:''}</div>
+        <div class="crm-att-action">${o.nextAction ? esc(o.nextAction) : '<span style=\"color:#f87171\">⚠ No next action set</span>'}</div>
       </div>
       <div style="text-align:right;white-space:nowrap">
-        <div class="crm-att-date" style="color:${px.color};text-shadow:${px.glow}">${o.nextDate ? fmtDate(o.nextDate) : '—'}</div>
-        <div style="color:${px.color};font-size:9px;font-weight:700">${when}</div>
+        <div class="crm-att-date" style="color:${dateColor};text-shadow:${dateGlow}">${o.nextDate ? fmtDate(o.nextDate) : '—'}</div>
+        <div style="color:${dateColor};font-size:9px;font-weight:700">${d === null ? (o.nextAction?'no date':'needs action') : countdownLabel(d)}</div>
       </div>
     </div>`;
   }).join('') : `<div style="color:#4ade80;font-size:12px;padding:10px 0">&#10003; Nothing needs attention right now</div>`;
 
-  // Pipeline cards grouped by stage
-  const stageChip = st => {
-    const c = { 'Inquiry':'#737373','Qualified':'#60a5fa','Proposal / Quote Sent':'#a78bfa','Negotiation':'#fbbf24','Won':'#4ade80','Lost':'#f87171' }[st] || '#737373';
-    return `<span class="crm-stage-chip" style="color:${c};border-color:${c}44;background:${c}18">${esc(st)}</span>`;
+  // Forecast — open deals by expected close date (soonest first)
+  const forecast = open.filter(o => o.close).sort((a,b)=>a.close.localeCompare(b.close)).slice(0,8);
+  const forecastHtml = forecast.length ? forecast.map(o => {
+    const cd = daysBetween(TODAY_STR, new Date(o.close+'T00:00:00'));
+    const px = proximity(cd);
+    return `<div class="crm-att-row" onclick="window.tl.openExternal('${o.url}')">
+      <div style="min-width:0;flex:1">
+        <div class="crm-att-name">${esc(o.name)}${o.company?`<span class="crm-att-co"> · ${esc(o.company)}</span>`:''}</div>
+        <div class="crm-att-action">${esc(o.stage)}${o.prob!==null?` · ${Math.round(o.prob*100)}% likely`:''}</div>
+      </div>
+      <div style="text-align:right;white-space:nowrap">
+        <div class="crm-opp-val" style="font-size:13px">${fmtMoney(o.est)}</div>
+        <div style="color:${px.color};font-size:9.5px;font-weight:700">${fmtDate(o.close)}</div>
+      </div>
+    </div>`;
+  }).join('') : `<div style="color:#525252;font-size:12px;padding:8px 0">No expected close dates set yet</div>`;
+
+  // Breakdowns: where deals come from (Source) and why we lose (Lost Reason)
+  const breakdown = (title, items, emptyMsg) => {
+    const total = items.reduce((s,i)=>s+i.count,0);
+    const rows = items.length ? items.sort((a,b)=>b.count-a.count).map(i =>
+      `<div class="crm-bd-row"><span class="crm-bd-label">${esc(i.label)}</span>
+       <div class="crm-bd-bar-wrap"><div class="crm-bd-bar" style="width:${total?i.count/total*100:0}%"></div></div>
+       <span class="crm-bd-count">${i.count}</span></div>`).join('') : `<div style="color:#525252;font-size:11px;padding:6px 0">${emptyMsg}</div>`;
+    return `<div class="crm-bd"><div class="crm-bd-title">${title}</div>${rows}</div>`;
   };
+  const tally = (list, key) => { const m = {}; list.forEach(o => { const v = o[key]; if(v) m[v] = (m[v]||0)+1; }); return Object.entries(m).map(([label,count])=>({label,count})); };
+  const sources    = tally(opps.filter(o=>o.stage!=='Lost'), 'source');
+  const lostReasons= tally(lost, 'lostReason');
+
+  const stageChip = st => { const c = stageColor[st] || '#737373'; return `<span class="crm-stage-chip" style="color:${c};border-color:${c}44;background:${c}18">${esc(st)}</span>`; };
   const oppCard = o => `<div class="crm-opp-card" onclick="window.tl.openExternal('${o.url}')">
     <div class="crm-opp-top"><span class="crm-opp-name">${esc(o.name)}</span><span class="crm-opp-val">${fmtMoney(o.est)}</span></div>
     <div class="crm-opp-sub">${o.company?esc(o.company)+' · ':''}${o.health?esc(o.health):''}</div>
     <div class="crm-opp-foot">${stageChip(o.stage)}${o.close?`<span class="crm-opp-close">Close ${fmtDate(o.close)}</span>`:''}</div>
   </div>`;
-
   const openByStage = CRM_OPEN_STAGES.filter(s => opps.some(o=>o.stage===s)).map(s => `
     <div class="crm-col">
       <div class="crm-col-hdr" style="color:${stageColor[s]}">${esc(s)} <span>${opps.filter(o=>o.stage===s).length}</span></div>
@@ -1452,18 +1511,32 @@ function renderCrm(opps){
 
   el.innerHTML = `<div class="crm-wrap">
     <div class="crm-metrics">
-      ${metric(open.length, 'Open opportunities', '')}
-      ${metric(fmtMoney(pipeline), 'Pipeline value', '#a78bfa')}
-      ${metric(fmtMoney(weighted), 'Weighted value', '#67e8f9')}
-      ${metric(won.length, 'Won', '#4ade80')}
-      ${metric(attention.length, 'Need attention', attention.length?'#fbbf24':'')}
+      ${metric(fmtMoney(pipeline), 'Pipeline value', '#a78bfa', open.length + ' open')}
+      ${metric(fmtMoney(weighted), 'Weighted forecast', '#67e8f9', 'probability-adjusted')}
+      ${metric(fmtMoney(closingVal), 'Closing this month', closingVal>0?'#fbbf24':'', closingThisMonth.length + ' deal' + (closingThisMonth.length===1?'':'s'))}
+      ${metric(fmtMoney(wonMonthVal), 'Won this month', '#4ade80', wonThisMonth.length + ' deal' + (wonThisMonth.length===1?'':'s'))}
+      ${metric(winRate===null?'—':winRate+'%', 'Win rate', '', won.length+'W · '+lost.length+'L')}
+      ${metric(attention.length, 'Need attention', attention.length?'#fbbf24':'#4ade80')}
     </div>
 
-    <div class="crm-section-lbl">&#9873; Needs Attention</div>
+    <div class="crm-section-lbl">&#9873; Needs Your Attention</div>
     <div class="crm-att-list">${attentionHtml}</div>
 
-    <div class="crm-section-lbl">Pipeline by Stage</div>
-    <div class="crm-funnel">${funnel}</div>
+    <div class="crm-cols2">
+      <div>
+        <div class="crm-section-lbl">Pipeline by Stage</div>
+        <div class="crm-funnel">${funnel}</div>
+      </div>
+      <div>
+        <div class="crm-section-lbl">Closing Soon</div>
+        <div class="crm-att-list">${forecastHtml}</div>
+      </div>
+    </div>
+
+    <div class="crm-cols2">
+      ${breakdown('Where deals come from', sources, 'No source data yet')}
+      ${breakdown('Why we lose', lostReasons, 'No lost deals — nice')}
+    </div>
 
     <div class="crm-section-lbl">Open Opportunities</div>
     <div class="crm-board">${openByStage || '<div style="color:#525252;font-size:12px">No open opportunities</div>'}</div>
