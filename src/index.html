@@ -25,6 +25,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;backgrou
 .conn-pill.offline {color:#f87171}.conn-pill.offline .conn-dot{background:#dc2626;animation:pulse 1.4s ease-in-out infinite}
 .tab-gear{background:none;border:none;color:#525252;font-size:16px;padding:0 14px;cursor:pointer}
 .tab-gear:hover{color:#a1a1aa}
+@media(max-width:560px){
+  .tab{padding:12px 12px;letter-spacing:.06em}
+  .conn-pill{padding:0 8px}
+  #conn-text{display:none}
+}
 
 /* offline banner */
 #offline-banner{display:none;align-items:center;gap:10px;background:rgba(220,38,38,.12);border-bottom:1px solid rgba(220,38,38,.35);color:#f87171;font-size:11.5px;font-weight:700;padding:9px 20px;letter-spacing:.02em}
@@ -247,6 +252,43 @@ body.behind .pulse-dot{background:#dc2626}
 .hist-empty-icon{font-size:40px;opacity:.15}
 .hist-empty-text{font-size:12.5px;color:#525252;line-height:1.6;max-width:300px}
 
+/* ── CRM VIEW ─────────────────────────────── */
+.crm-wrap{max-width:820px;margin:0 auto;width:100%;padding:28px 24px 60px}
+.crm-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:26px}
+.crm-metric{background:#111;border:1px solid #1f1f1f;border-radius:10px;padding:14px 16px;text-align:center}
+.crm-metric-n{font-size:22px;font-weight:800;line-height:1;margin-bottom:4px;letter-spacing:-.5px}
+.crm-metric-l{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#737373}
+.crm-section-lbl{font-size:9.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#525252;margin:24px 0 12px;display:flex;align-items:center;gap:10px}
+.crm-section-lbl::after{content:'';flex:1;height:1px;background:#1a1a1a}
+.crm-att-list{display:flex;flex-direction:column;gap:6px}
+.crm-att-row{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#111;border:1px solid #1f1f1f;border-radius:9px;cursor:pointer;transition:border-color .15s}
+.crm-att-row:hover{border-color:#3f3f46}
+.crm-att-name{font-size:12px;font-weight:700;color:#e4e4e7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crm-att-co{color:#737373;font-weight:600}
+.crm-att-action{font-size:10.5px;color:#a1a1aa;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crm-att-date{font-size:14px;font-weight:800;letter-spacing:-.3px}
+.crm-funnel{display:flex;flex-direction:column;gap:8px;background:#111;border:1px solid #1f1f1f;border-radius:10px;padding:16px 18px}
+.crm-funnel-row{display:flex;align-items:center;gap:12px}
+.crm-funnel-label{font-size:11px;font-weight:700;color:#a1a1aa;width:130px;flex-shrink:0}
+.crm-funnel-bar-wrap{flex:1;height:10px;background:#1a1a1a;border-radius:999px;overflow:hidden}
+.crm-funnel-bar{height:100%;border-radius:999px;min-width:3px;transition:width .5s cubic-bezier(.4,0,.2,1)}
+.crm-funnel-meta{display:flex;align-items:baseline;gap:8px;width:96px;flex-shrink:0;justify-content:flex-end}
+.crm-funnel-count{font-size:13px;font-weight:800;color:#e4e4e7}
+.crm-funnel-val{font-size:10px;font-weight:600;color:#737373}
+.crm-board{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;align-items:start}
+.crm-col-hdr{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.crm-col-hdr span{background:#1a1a1a;border:1px solid #262626;border-radius:999px;padding:0 7px;font-size:9px;color:#a1a1aa}
+.crm-opp-card{background:#111;border:1px solid #1f1f1f;border-radius:9px;padding:11px 13px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,transform .15s}
+.crm-opp-card:hover{border-color:#3f3f46;transform:translateY(-1px)}
+.crm-opp-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.crm-opp-name{font-size:11.5px;font-weight:700;color:#e4e4e7;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crm-opp-val{font-size:11px;font-weight:800;color:#a78bfa;white-space:nowrap}
+.crm-opp-sub{font-size:9.5px;color:#737373;font-weight:600;margin:4px 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crm-opp-foot{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.crm-stage-chip{font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;border:1px solid}
+.crm-opp-close{font-size:9px;font-weight:600;color:#525252;white-space:nowrap}
+@media(max-width:560px){.crm-wrap{padding:20px 14px 48px}.crm-funnel-label{width:96px;font-size:10px}}
+
 /* ── DETAIL VIEW ──────────────────────────── */
 #hub-view{display:block}
 #detail-view{display:none}
@@ -351,6 +393,7 @@ body.behind .pulse-dot{background:#dc2626}
 
 <div class="tab-bar" id="tab-bar">
   <button class="tab tab-active" id="tab-hub"     onclick="showTab('hub')">&#9679; Hub</button>
+  <button class="tab"            id="tab-crm"     onclick="showTab('crm')">&#128188; CRM</button>
   <button class="tab"            id="tab-history" onclick="showTab('history')">&#9783; History</button>
   <div class="conn-pill" id="conn-pill" style="display:none"><span class="conn-dot"></span><span id="conn-text"></span></div>
   <button class="tab-gear" id="tab-settings" onclick="enterToken()" title="Set Notion Token">&#9881;</button>
@@ -415,6 +458,8 @@ body.behind .pulse-dot{background:#dc2626}
   <div id="hist-content"></div>
 </div>
 
+<div id="crm-view" style="display:none"></div>
+
 <div id="detail-view"></div>
 
 <script>
@@ -426,6 +471,12 @@ body.behind .pulse-dot{background:#dc2626}
 const D_DESIGN = 40, D_DRAW = 15, D_QUOTE = 15, D_STD = D_DESIGN + D_DRAW + D_QUOTE;
 
 const PROJECTS_DB_ID = '3092b8ff-1ebd-8199-bf94-ca7053d4d0a4';
+// CRM (Sales) databases — read-only in the app
+const CRM_OPPS_DB      = '9cb430ff-eaf5-4d99-b503-652b9bd2b83b';
+const CRM_COMPANIES_DB = '3ff0d65a-79e9-4ede-8c9a-32005be3cc74';
+const CRM_STAGES = ['Inquiry','Qualified','Proposal / Quote Sent','Negotiation','Won','Lost'];
+const CRM_OPEN_STAGES = ['Inquiry','Qualified','Proposal / Quote Sent','Negotiation'];
+const CRM_CACHE_KEY = 'tl-crm-cache-v1';
 const CACHE_KEY  = 'tl-cache-v10';
 const OLD_CACHE_KEYS = ['tl-boss-v9'];
 
@@ -1081,26 +1132,28 @@ function renderUpcomingDeliverables(){
 // ═══════════════════════════════════════════════════════════════════════════
 //  HUB / DETAIL NAVIGATION
 // ═══════════════════════════════════════════════════════════════════════════
+const VIEWS = { hub:'hub-view', crm:'crm-view', history:'history-view' };
+
+function showViewFor(tab){
+  for(const [name, id] of Object.entries(VIEWS)){
+    document.getElementById(id).style.display = (name === tab) ? (name === 'hub' ? '' : 'block') : 'none';
+  }
+  document.getElementById('tab-hub').classList.toggle('tab-active', tab === 'hub');
+  document.getElementById('tab-crm').classList.toggle('tab-active', tab === 'crm');
+  document.getElementById('tab-history').classList.toggle('tab-active', tab === 'history');
+}
+
 function showHub(){
   document.getElementById('tab-bar').style.display = 'flex';
   document.getElementById('detail-view').style.display = 'none';
-  if(_currentTab === 'history'){
-    document.getElementById('hub-view').style.display = 'none';
-    document.getElementById('history-view').style.display = 'block';
-  } else {
-    document.getElementById('hub-view').style.display = '';
-    document.getElementById('history-view').style.display = 'none';
-  }
+  showViewFor(_currentTab);
 }
 
 function showTab(tab){
   _currentTab = tab;
-  const hubEl = document.getElementById('hub-view');
-  const histEl = document.getElementById('history-view');
-  document.getElementById('tab-hub').classList.toggle('tab-active', tab === 'hub');
-  document.getElementById('tab-history').classList.toggle('tab-active', tab === 'history');
-  if(tab === 'hub'){ hubEl.style.display = ''; histEl.style.display = 'none'; }
-  else { hubEl.style.display = 'none'; histEl.style.display = 'block'; loadHistoryView(); }
+  showViewFor(tab);
+  if(tab === 'crm')     loadCrmView();
+  if(tab === 'history') loadHistoryView();
 }
 
 async function showDetail(name){
@@ -1272,6 +1325,151 @@ function renderDetail(p){
   ${taskRows}` : `<div style="color:#3f3f46;font-size:11px;margin-top:20px">Loading task details&hellip;</div>`}
 
 </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  CRM (SALES PIPELINE)
+// ═══════════════════════════════════════════════════════════════════════════
+let _crm = null;          // { opps:[...], ts }
+let _crmLoading = false;
+
+const fmtMoney = n => {
+  if(n === null || n === undefined || isNaN(n)) return '—';
+  if(Math.abs(n) >= 1000) return '$' + (n/1000).toFixed(n % 1000 === 0 ? 0 : 1) + 'k';
+  return '$' + Math.round(n);
+};
+
+function mapOpp(row, companyMap){
+  const p = row.props || {};
+  const companyId = (Array.isArray(p['Company']) && p['Company'][0] ? p['Company'][0] : '').replace(/.*\/p\//,'').replace(/-/g,'');
+  return {
+    id: row.id,
+    name: row.title || p['Name'] || 'Untitled',
+    stage: p['Stage'] || 'Inquiry',
+    est: typeof p['Est. Value'] === 'number' ? p['Est. Value'] : null,
+    weighted: typeof p['Weighted Value'] === 'number' ? p['Weighted Value'] : null,
+    prob: typeof p['Probability'] === 'number' ? p['Probability'] : null,
+    health: p['Health'] || '',
+    source: p['Source'] || '',
+    nextAction: p['Next Action'] || '',
+    nextDate: (p['date:Next Action Date:start'] || '').substring(0,10) || null,
+    close: (p['date:Expected Close:start'] || '').substring(0,10) || null,
+    company: companyMap[companyId] || '',
+    url: 'https://www.notion.so/' + (row.id||'').replace(/-/g,'')
+  };
+}
+
+async function loadCrmView(){
+  const el = document.getElementById('crm-view');
+  // paint from cache first
+  if(!_crm){ try{ _crm = JSON.parse(localStorage.getItem(CRM_CACHE_KEY) || 'null'); }catch(e){} }
+  if(_crm) renderCrm(_crm.opps);
+  else el.innerHTML = `<div class="crm-wrap"><div class="spin-wrap"><div class="spin"></div></div></div>`;
+
+  if(_crmLoading) return;
+  _crmLoading = true;
+  try{
+    const [oppRows, compRows] = await Promise.all([
+      window.tl.queryDatabase(CRM_OPPS_DB),
+      window.tl.queryDatabase(CRM_COMPANIES_DB).catch(() => [])
+    ]);
+    const companyMap = {};
+    (compRows || []).forEach(c => { companyMap[(c.id||'').replace(/-/g,'')] = c.title || (c.props && c.props['Name']) || ''; });
+    const opps = oppRows.map(r => mapOpp(r, companyMap));
+    _crm = { opps, ts: Date.now() };
+    try{ localStorage.setItem(CRM_CACHE_KEY, JSON.stringify(_crm)); }catch(e){}
+    renderCrm(opps);
+  }catch(e){
+    console.warn('[TL] CRM load failed:', e.message);
+    if(!_crm){
+      el.innerHTML = `<div class="crm-wrap"><div class="hist-empty">
+        <div class="hist-empty-icon">&#128188;</div>
+        <div class="hist-empty-text">Couldn't load the CRM.<br><span style="color:#b45050">${esc(e.message||'')}</span><br><br>This token may not have access to the Sales / CRM databases in Notion.</div>
+      </div></div>`;
+    }
+  }finally{ _crmLoading = false; }
+}
+
+function renderCrm(opps){
+  const el = document.getElementById('crm-view');
+  const open = opps.filter(o => CRM_OPEN_STAGES.includes(o.stage));
+  const won  = opps.filter(o => o.stage === 'Won');
+  const pipeline = open.reduce((s,o) => s + (o.est || 0), 0);
+  const weighted = open.reduce((s,o) => s + (o.weighted || 0), 0);
+
+  // Needs attention: open opps whose next action is due/overdue (or missing a next date)
+  const attention = open
+    .map(o => ({ o, d: o.nextDate ? daysBetween(TODAY_STR, new Date(o.nextDate+'T00:00:00')) : null }))
+    .filter(x => x.d === null || x.d <= 3)
+    .sort((a,b) => (a.d===null?9999:a.d) - (b.d===null?9999:b.d));
+
+  const metric = (n, l, color) => `<div class="crm-metric"><div class="crm-metric-n" style="${color?`color:${color}`:''}">${n}</div><div class="crm-metric-l">${l}</div></div>`;
+
+  // Funnel: count + value per open stage, bar width by count
+  const maxCount = Math.max(1, ...CRM_OPEN_STAGES.map(s => opps.filter(o => o.stage === s).length));
+  const stageColor = { 'Inquiry':'#737373','Qualified':'#60a5fa','Proposal / Quote Sent':'#a78bfa','Negotiation':'#fbbf24' };
+  const funnel = CRM_OPEN_STAGES.map(s => {
+    const list = opps.filter(o => o.stage === s);
+    const val = list.reduce((a,o)=>a+(o.est||0),0);
+    return `<div class="crm-funnel-row">
+      <div class="crm-funnel-label">${esc(s)}</div>
+      <div class="crm-funnel-bar-wrap"><div class="crm-funnel-bar" style="width:${list.length/maxCount*100}%;background:${stageColor[s]}"></div></div>
+      <div class="crm-funnel-meta"><span class="crm-funnel-count">${list.length}</span><span class="crm-funnel-val">${fmtMoney(val)}</span></div>
+    </div>`;
+  }).join('');
+
+  const attentionHtml = attention.length ? attention.map(({o,d}) => {
+    const px = proximity(d);
+    const when = d === null ? 'no date set' : countdownLabel(d);
+    return `<div class="crm-att-row" onclick="window.tl.openExternal('${o.url}')">
+      <div style="min-width:0;flex:1">
+        <div class="crm-att-name">${esc(o.name)}${o.company?`<span class="crm-att-co"> · ${esc(o.company)}</span>`:''}</div>
+        <div class="crm-att-action">${o.nextAction ? esc(o.nextAction) : '<span style=\"color:#525252\">No next action set</span>'}</div>
+      </div>
+      <div style="text-align:right;white-space:nowrap">
+        <div class="crm-att-date" style="color:${px.color};text-shadow:${px.glow}">${o.nextDate ? fmtDate(o.nextDate) : '—'}</div>
+        <div style="color:${px.color};font-size:9px;font-weight:700">${when}</div>
+      </div>
+    </div>`;
+  }).join('') : `<div style="color:#4ade80;font-size:12px;padding:10px 0">&#10003; Nothing needs attention right now</div>`;
+
+  // Pipeline cards grouped by stage
+  const stageChip = st => {
+    const c = { 'Inquiry':'#737373','Qualified':'#60a5fa','Proposal / Quote Sent':'#a78bfa','Negotiation':'#fbbf24','Won':'#4ade80','Lost':'#f87171' }[st] || '#737373';
+    return `<span class="crm-stage-chip" style="color:${c};border-color:${c}44;background:${c}18">${esc(st)}</span>`;
+  };
+  const oppCard = o => `<div class="crm-opp-card" onclick="window.tl.openExternal('${o.url}')">
+    <div class="crm-opp-top"><span class="crm-opp-name">${esc(o.name)}</span><span class="crm-opp-val">${fmtMoney(o.est)}</span></div>
+    <div class="crm-opp-sub">${o.company?esc(o.company)+' · ':''}${o.health?esc(o.health):''}</div>
+    <div class="crm-opp-foot">${stageChip(o.stage)}${o.close?`<span class="crm-opp-close">Close ${fmtDate(o.close)}</span>`:''}</div>
+  </div>`;
+
+  const openByStage = CRM_OPEN_STAGES.filter(s => opps.some(o=>o.stage===s)).map(s => `
+    <div class="crm-col">
+      <div class="crm-col-hdr" style="color:${stageColor[s]}">${esc(s)} <span>${opps.filter(o=>o.stage===s).length}</span></div>
+      ${opps.filter(o=>o.stage===s).map(oppCard).join('')}
+    </div>`).join('');
+
+  el.innerHTML = `<div class="crm-wrap">
+    <div class="crm-metrics">
+      ${metric(open.length, 'Open opportunities', '')}
+      ${metric(fmtMoney(pipeline), 'Pipeline value', '#a78bfa')}
+      ${metric(fmtMoney(weighted), 'Weighted value', '#67e8f9')}
+      ${metric(won.length, 'Won', '#4ade80')}
+      ${metric(attention.length, 'Need attention', attention.length?'#fbbf24':'')}
+    </div>
+
+    <div class="crm-section-lbl">&#9873; Needs Attention</div>
+    <div class="crm-att-list">${attentionHtml}</div>
+
+    <div class="crm-section-lbl">Pipeline by Stage</div>
+    <div class="crm-funnel">${funnel}</div>
+
+    <div class="crm-section-lbl">Open Opportunities</div>
+    <div class="crm-board">${openByStage || '<div style="color:#525252;font-size:12px">No open opportunities</div>'}</div>
+
+    <div style="font-size:9.5px;color:#3f3f46;margin-top:20px;text-align:right">Sales data from Notion${_crm && _crm.ts ? ' · synced ' + fmtTime(new Date(_crm.ts)) : ''}</div>
+  </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
