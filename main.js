@@ -242,7 +242,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 940, height: 780, minWidth: 620, minHeight: 520,
     backgroundColor: '#0a0a0a',
-    title: 'TL Design Team',
+    title: 'Tirso Lighting App',
     icon: path.join(__dirname, 'build', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

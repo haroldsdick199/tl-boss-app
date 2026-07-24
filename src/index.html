@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TL Design Team</title>
+  <title>Tirso Lighting App</title>
 </head>
 <body>
 <style>
@@ -363,7 +363,7 @@ body.behind .pulse-dot{background:#dc2626}
 
 <div id="hub-view">
 <div class="score-section">
-  <div class="brand">TIRSO &middot; LIGHTING &mdash; DESIGN TEAM</div>
+  <div class="brand">TIRSO LIGHTING <span>&middot; APP</span></div>
 
   <div id="ring-el">
     <div class="spin-wrap"><div class="spin"></div></div>
@@ -696,7 +696,7 @@ async function refreshFromNotion(){
   // Old app builds (before Jul 2026) lack the database-query bridge — the UI
   // auto-updates but main.js only changes with a reinstall.
   if(!window.tl || typeof window.tl.queryDatabase !== 'function'){
-    setConn('offline', 'This app version is too old for the new dashboard. Please reinstall using the latest "TL Design Team Setup" (run BUILD.bat / ask Harold for the new installer).');
+    setConn('offline', 'This app version is too old for the new dashboard. Please reinstall using the latest "Tirso Lighting App Setup" (run BUILD.bat / ask Harold for the new installer).');
     return;
   }
   _refreshing = true;

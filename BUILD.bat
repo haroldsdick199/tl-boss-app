@@ -1,9 +1,9 @@
 @echo off
 cd /d "%~dp0"
-title TL Design Team - Build
+title Tirso Lighting App - Build
 echo.
 echo  ============================================
-echo   TL Design Team - Building Windows Installer
+echo   Tirso Lighting App - Building Windows Installer
 echo  ============================================
 echo.
 
@@ -16,6 +16,7 @@ if errorlevel 1 (
 )
 
 echo  [0/3] Closing any running app instances...
+taskkill /f /im "Tirso Lighting App.exe" /t >nul 2>&1
 taskkill /f /im "TL Design Team.exe" /t >nul 2>&1
 timeout /t 2 /nobreak >nul
 
@@ -52,7 +53,7 @@ if exist _dist_old ( rd /s /q _dist_old >nul 2>&1 )
 echo.
 echo  ============================================
 echo   SUCCESS! Installer is in the dist folder.
-echo   Run: TL Design Team Setup 1.0.7.exe
+echo   Run: Tirso Lighting App Setup 1.0.0.exe
 echo  ============================================
 echo.
 explorer dist

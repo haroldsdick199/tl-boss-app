@@ -1,4 +1,4 @@
-# TL Design Team — Desktop App
+# Tirso Lighting App — Desktop App
 
 A standalone Windows desktop app for the Tirso Lighting design team dashboard. Reads live data directly from Notion via the REST API — no browser, no Claude, no internet sign-in required after setup.
 
